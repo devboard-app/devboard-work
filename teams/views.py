@@ -7,22 +7,27 @@ from rest_framework.response import Response
 
 from work.views import AsyncAPIView
 
+from .infrastructure import get_user_id_by_email
 from .models import TeamMembership
-from .permissions import require_team_role
+from .permissions import can_assign_role, require_team_role
 from .repository import (
+    count_owners,
     create_membership,
     create_team,
+    delete_membership,
+    get_membership_by_team,
+    get_membership_by_user_and_team,
     get_team_by_id,
     get_teams_by_user,
 )
-from .serializers import TeamSerializer
+from .serializers import TeamMembershipSerializer, TeamSerializer
 
 
 class TeamListCreateView(AsyncAPIView):
     permission_classes: ClassVar = [IsAuthenticated]
 
     async def get(self, request):
-        
+
         memberships = await get_teams_by_user(request.user.user_id)
         teams = [m.team for m in memberships]
         serializer = TeamSerializer(teams, many = True)
@@ -70,4 +75,84 @@ class TeamDetailView(AsyncAPIView):
         await require_team_role(request.user.user_id, str(pk), 'owner')
         await sync_to_async(team.delete)()
         return Response(status=status.HTTP_204_NO_CONTENT)
-    
+
+class TeamMemberListInviteView(AsyncAPIView):
+    permission_classes: ClassVar = [IsAuthenticated]
+
+    async def get(self, request, pk):
+
+        team = await get_team_by_id(str(pk))
+        if team is None:
+            return Response({'detail': 'Team not found.'}, status=status.HTTP_404_NOT_FOUND)
+        await require_team_role(request.user.user_id,  str(pk), 'owner', 'admin', 'member', 'viewer')
+        memberships = await get_membership_by_team(str(pk))
+        serializer = TeamMembershipSerializer(memberships, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    async def post(self, request, pk):
+
+        team = await get_team_by_id(str(pk))
+        if team is None:
+            return Response({'detail': 'Team not found.'}, status=status.HTTP_404_NOT_FOUND)
+        requester_membership = await require_team_role(request.user.user_id, str(pk), 'owner', 'admin')
+        target_role = request.data.get('role')
+        if not can_assign_role(requester_membership.role, target_role):
+            return Response({'detail': 'You cannot assign this role.'}, status=status.HTTP_403_FORBIDDEN)
+        email = request.data.get('email')
+        user_id = await get_user_id_by_email(email)
+        if user_id is None:
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        existing = await get_membership_by_user_and_team(str(user_id), str(pk))
+        if existing is not None:
+            return Response({'detail': 'User is already a member.'}, status=status.HTTP_409_CONFLICT)
+        membership = await create_membership(team, user_id, target_role)
+        serializer = TeamMembershipSerializer(membership)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+class TeamMemberDetailView(AsyncAPIView):
+    permission_classes: ClassVar = [IsAuthenticated]
+
+    async def delete(self, request, pk, user_id):
+        team = await get_team_by_id(str(pk))
+        if team is None:
+            return Response({'detail': 'Team not found.'}, status=status.HTTP_404_NOT_FOUND)
+        await require_team_role(request.user.user_id, str(pk), 'owner', 'admin')
+
+        target_membership = await get_membership_by_user_and_team(str(user_id),str(pk))
+        if target_membership is None:
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if target_membership.role == 'owner':
+            return Response({'detail': 'Cannot remove a team owner.'}, status=status.HTTP_403_FORBIDDEN)
+        await delete_membership(target_membership)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    async def patch(self, request, pk, user_id):
+        team = await get_team_by_id(str(pk))
+        if team is None:
+            return Response({'detail': 'Team not found.'}, status=status.HTTP_404_NOT_FOUND)
+        requester_membership = await require_team_role(request.user.user_id, str(pk), 'owner', 'admin')
+        target_membership = await get_membership_by_user_and_team(str(user_id), str(pk))
+        if target_membership is None:
+            return Response({'detail': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        target_role = request.data.get('role')
+        if not can_assign_role(requester_membership.role, target_role):
+            return Response({'detail': 'You cannot assign this role.'}, status=status.HTTP_403_FORBIDDEN)
+        target_membership.role = target_role
+        await sync_to_async(target_membership.save)()
+        serializer = TeamMembershipSerializer(target_membership)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+class TeamMemberLeaveView(AsyncAPIView):
+    permission_classes: ClassVar = [IsAuthenticated]
+
+    async def delete(self, request, pk):
+        team = await get_team_by_id(str(pk))
+        if team is None:
+            return Response({'detail': 'Team not found.'}, status=status.HTTP_404_NOT_FOUND)
+        membership = await get_membership_by_user_and_team(request.user.user_id, str(pk))
+        if membership is None:
+            return Response({'detail': 'You are not a member of this team.'}, status=status.HTTP_404_NOT_FOUND)
+        if membership.role == 'owner' and await count_owners(str(pk)) == 1:
+            return Response({'detail': 'Cannot leave team as the last owner.'}, status=status.HTTP_403_FORBIDDEN)
+        await delete_membership(membership)
+        return Response(status=status.HTTP_204_NO_CONTENT)
