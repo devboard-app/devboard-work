@@ -4,7 +4,7 @@ from .models import Team, TeamMembership
 async def get_team_by_id(team_id: str)->Team | None:
     return await Team.objects.filter(id=team_id).afirst()
 
-async def get_teams_by_user(user_id: str)-> list[TeamMembership] | None :
+async def get_teams_by_user(user_id: str)-> list[TeamMembership]  :
     return [m async for m in TeamMembership.objects.filter(user_id=user_id).select_related('team')]
 
 async def create_team(name: str, description: str, owner_id: str) -> Team:
