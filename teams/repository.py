@@ -13,3 +13,5 @@ async def create_team(name: str, description: str, owner_id: str) -> Team:
 async def create_membership(team: Team, user_id: str, role: str) -> TeamMembership:
     return await TeamMembership.objects.acreate(team=team, user_id=user_id, role=role)
 
+async def get_membership_by_user_and_team(user_id: str, team_id: str) -> TeamMembership | None:
+    return await TeamMembership.objects.filter(user_id=user_id, team_id=team_id).afirst()
