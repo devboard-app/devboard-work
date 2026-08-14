@@ -137,6 +137,8 @@ class TeamMemberDetailView(AsyncAPIView):
         target_role = request.data.get('role')
         if not can_assign_role(requester_membership.role, target_role):
             return Response({'detail': 'You cannot assign this role.'}, status=status.HTTP_403_FORBIDDEN)
+        if target_membership.role =='owner' and target_role != 'owner' and await count_owners(str(pk)) == 1:
+            return Response({'detail': 'Cannot demote the last owner.'}, status=status.HTTP_403_FORBIDDEN)
         target_membership.role = target_role
         await sync_to_async(target_membership.save)()
         serializer = TeamMembershipSerializer(target_membership)
