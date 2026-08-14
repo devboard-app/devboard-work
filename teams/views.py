@@ -7,6 +7,7 @@ from rest_framework.response import Response
 
 from work.views import AsyncAPIView
 
+from .infrastructure import send_invitation_email
 from .permissions import require_team_role
 from .repository import (
     get_membership_by_team,
@@ -90,6 +91,7 @@ class TeamMemberListInviteView(AsyncAPIView):
         target_role = request.data.get('role')
         target_email = request.data.get('email')
         membership = await invite_member(team, requester_membership.role, target_email, target_role) 
+        await send_invitation_email(target_email, team.name, request.user.email)
         serializer = TeamMembershipSerializer(membership)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
