@@ -1,8 +1,6 @@
-from typing import ClassVar
 
 from asgiref.sync import sync_to_async
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from work.views import AsyncAPIView
@@ -25,7 +23,6 @@ from .services import (
 
 
 class TeamListCreateView(AsyncAPIView):
-    permission_classes: ClassVar = [IsAuthenticated]
 
     async def get(self, request):
 
@@ -47,7 +44,6 @@ class TeamListCreateView(AsyncAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class TeamDetailView(AsyncAPIView):
-    permission_classes: ClassVar = [IsAuthenticated]
 
     async def get(self, request, pk):
 
@@ -74,7 +70,6 @@ class TeamDetailView(AsyncAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class TeamMemberListInviteView(AsyncAPIView):
-    permission_classes: ClassVar = [IsAuthenticated]
 
     async def get(self, request, pk):
 
@@ -96,7 +91,6 @@ class TeamMemberListInviteView(AsyncAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class TeamMemberDetailView(AsyncAPIView):
-    permission_classes: ClassVar = [IsAuthenticated]
 
     async def delete(self, request, pk, user_id):
         await get_team_or_404(str(pk))
@@ -114,7 +108,6 @@ class TeamMemberDetailView(AsyncAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 class TeamMemberLeaveView(AsyncAPIView):
-    permission_classes: ClassVar = [IsAuthenticated]
 
     async def delete(self, request, pk):
         await get_team_or_404(str(pk))
