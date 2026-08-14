@@ -36,7 +36,9 @@ class TeamListCreateView(AsyncAPIView):
     async def post(self, request):
 
         name = request.data.get('name')
-        description = request.data.get('description')
+        description = request.data.get('description', '')
+        if not name:
+            return Response({'detail': 'Name is required.'}, status=status.HTTP_400_BAD_REQUEST)
         owner_id = request.user.user_id
         team =await create_team(name, description, owner_id)
         await create_membership(team, owner_id, TeamMembership.Role.OWNER)
