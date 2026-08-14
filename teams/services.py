@@ -39,12 +39,14 @@ async def invite_member(team: Team, requester_role: str, email: str, target_role
         raise ValidationError('User is already a member.')
     return await create_membership(team, user_id, target_role)
 
-async def remove_member(team_id: str, user_id: str) -> None:
+async def remove_member(team_id: str, user_id: str, requester_role: str) -> None:
     target_membership = await get_membership_by_user_and_team(str(user_id), str(team_id))
     if target_membership is None:
         raise NotFound('User not found')
     if target_membership.role == 'owner':
         raise PermissionDenied('Cannot remove a team owner.')
+    if not can_assign_role(requester_role, target_membership.role):
+        raise PermissionDenied('Cannot remove a member with equal or higher role.')
     await delete_membership(target_membership)
 
 async def change_member_role(team_id: str, user_id: str, requester_role: str, target_role: str) -> TeamMembership:

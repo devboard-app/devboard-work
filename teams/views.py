@@ -94,8 +94,8 @@ class TeamMemberDetailView(AsyncAPIView):
 
     async def delete(self, request, pk, user_id):
         await get_team_or_404(str(pk))
-        await require_team_role(request.user.user_id, str(pk), 'owner', 'admin')
-        await remove_member(str(pk), user_id)
+        requester_membership = await require_team_role(request.user.user_id, str(pk), 'owner', 'admin')
+        await remove_member(str(pk), user_id, requester_membership.role)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     async def patch(self, request, pk, user_id):
