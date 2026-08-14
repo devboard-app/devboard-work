@@ -13,6 +13,4 @@ def can_assign_role(requester_role: str, target_role: str) -> bool:
     hierarchy = ['owner', 'admin', 'member', 'viewer']
     if requester_role not in hierarchy or target_role not in hierarchy:
         return False
-    if requester_role == 'owner':
-        return True
     return hierarchy.index(requester_role) < hierarchy.index(target_role)

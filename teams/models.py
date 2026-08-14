@@ -4,12 +4,6 @@ from typing import ClassVar
 from django.db import models
 
 
-class Role(models.TextChoices):
-    OWNER = 'owner', 'Owner'
-    ADMIN = 'admin', 'Admin'
-    MEMBER = 'member', 'Member'
-    VIEWER = 'viewer', 'Viewer'
-
 class Team(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)

@@ -11,7 +11,6 @@ from .infrastructure import get_user_id_by_email
 from .models import TeamMembership
 from .permissions import can_assign_role, require_team_role
 from .repository import (
-    count_owners,
     create_membership,
     create_team,
     delete_membership,
@@ -139,8 +138,6 @@ class TeamMemberDetailView(AsyncAPIView):
         target_role = request.data.get('role')
         if not can_assign_role(requester_membership.role, target_role):
             return Response({'detail': 'You cannot assign this role.'}, status=status.HTTP_403_FORBIDDEN)
-        if target_membership.role =='owner' and target_role != 'owner' and await count_owners(str(pk)) == 1:
-            return Response({'detail': 'Cannot demote the last owner.'}, status=status.HTTP_403_FORBIDDEN)
         target_membership.role = target_role
         await sync_to_async(target_membership.save)()
         serializer = TeamMembershipSerializer(target_membership)
@@ -156,7 +153,7 @@ class TeamMemberLeaveView(AsyncAPIView):
         membership = await get_membership_by_user_and_team(request.user.user_id, str(pk))
         if membership is None:
             return Response({'detail': 'You are not a member of this team.'}, status=status.HTTP_404_NOT_FOUND)
-        if membership.role == 'owner' and await count_owners(str(pk)) == 1:
-            return Response({'detail': 'Cannot leave team as the last owner.'}, status=status.HTTP_403_FORBIDDEN)
+        if membership.role == 'owner':
+            return Response({'detail': 'Cannot leave team if you are the owner.'}, status=status.HTTP_403_FORBIDDEN)
         await delete_membership(membership)
         return Response(status=status.HTTP_204_NO_CONTENT)
