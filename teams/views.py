@@ -39,7 +39,7 @@ class TeamListCreateView(AsyncAPIView):
         if not name:
             return Response({'detail': 'Name is required.'}, status=status.HTTP_400_BAD_REQUEST)
         owner_id = request.user.user_id
-        team =await create_team(name, description, owner_id)
+        team = await create_team(name, description, owner_id)
         await create_membership(team, owner_id, TeamMembership.Role.OWNER)
         serializer = TeamSerializer(team)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -85,7 +85,7 @@ class TeamMemberListInviteView(AsyncAPIView):
         team = await get_team_by_id(str(pk))
         if team is None:
             return Response({'detail': 'Team not found.'}, status=status.HTTP_404_NOT_FOUND)
-        await require_team_role(request.user.user_id,  str(pk), 'owner', 'admin', 'member', 'viewer')
+        await require_team_role(request.user.user_id, str(pk), 'owner', 'admin', 'member', 'viewer')
         memberships = await get_membership_by_team(str(pk))
         serializer = TeamMembershipSerializer(memberships, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -138,6 +138,8 @@ class TeamMemberDetailView(AsyncAPIView):
         target_role = request.data.get('role')
         if not can_assign_role(requester_membership.role, target_role):
             return Response({'detail': 'You cannot assign this role.'}, status=status.HTTP_403_FORBIDDEN)
+        if target_membership.role == 'owner':
+            return Response({'detail': 'Cannot demote the owner.'}, status=status.HTTP_403_FORBIDDEN)
         target_membership.role = target_role
         await sync_to_async(target_membership.save)()
         serializer = TeamMembershipSerializer(target_membership)
