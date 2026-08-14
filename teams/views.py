@@ -85,6 +85,8 @@ class TeamMemberListInviteView(AsyncAPIView):
         requester_membership = await require_team_role(request.user.user_id, str(pk), 'owner', 'admin')
         target_role = request.data.get('role')
         target_email = request.data.get('email')
+        if not target_role or not target_email:
+            return Response({'detail':'Email and role are required.'}, status=status.HTTP_400_BAD_REQUEST)
         membership = await invite_member(team, requester_membership.role, target_email, target_role) 
         await send_invitation_email(target_email, team.name, request.user.email)
         serializer = TeamMembershipSerializer(membership)
@@ -103,6 +105,9 @@ class TeamMemberDetailView(AsyncAPIView):
         requester_membership = await require_team_role(request.user.user_id, str(pk), 'owner', 'admin')
         requester_role = requester_membership.role
         target_role = request.data.get('role')
+        if not target_role:
+            return Response({'detail':'Role is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
         target_membership = await change_member_role(str(team.id), user_id, requester_role, target_role)
         serializer = TeamMembershipSerializer(target_membership)
         return Response(serializer.data, status=status.HTTP_200_OK)
