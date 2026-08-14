@@ -15,6 +15,10 @@ class Team(models.Model):
     class Meta:
         db_table= 'teams'
 
+    def __str__(self):
+        return self.name
+
+
 class TeamMembership(models.Model):
 
     class Role(models.TextChoices):
@@ -32,3 +36,6 @@ class TeamMembership(models.Model):
     class Meta:
         db_table = 'memberships'
         unique_together: ClassVar = [('user_id', 'team')]
+
+    def __str__(self):
+        return f'{self.user_id} - {self.team.name} ({self.role})'
