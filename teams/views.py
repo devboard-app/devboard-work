@@ -1,4 +1,6 @@
+import logging
 
+import httpx
 from asgiref.sync import sync_to_async
 from rest_framework import status
 from rest_framework.response import Response
@@ -6,6 +8,7 @@ from rest_framework.response import Response
 from work.views import AsyncAPIView
 
 from .infrastructure import send_invitation_email
+from .models import TeamMembership
 from .permissions import require_team_role
 from .repository import (
     get_membership_by_team,
@@ -21,7 +24,8 @@ from .services import (
     remove_member,
 )
 
-
+logger = logging.getLogger(__name__)
+Role = TeamMembership.Role
 class TeamListCreateView(AsyncAPIView):
 
     async def get(self, request):
@@ -48,14 +52,14 @@ class TeamDetailView(AsyncAPIView):
     async def get(self, request, pk):
 
         team = await get_team_or_404(str(pk))
-        await require_team_role(request.user.user_id, str(pk), 'owner', 'admin', 'member', 'viewer')
+        await require_team_role(request.user.user_id, str(pk), Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
         serializer = TeamSerializer(team)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     async def patch(self, request, pk):
 
         team = await get_team_or_404(str(pk))
-        await require_team_role(request.user.user_id, str(pk), 'owner', 'admin')
+        await require_team_role(request.user.user_id, str(pk), Role.OWNER, Role.ADMIN)
         serializer = TeamSerializer(team, data=request.data, partial=True)
         if await sync_to_async(serializer.is_valid)():
             await sync_to_async(serializer.save)()
@@ -65,7 +69,7 @@ class TeamDetailView(AsyncAPIView):
     async def delete(self, request, pk):
 
         team = await get_team_or_404(str(pk))
-        await require_team_role(request.user.user_id, str(pk), 'owner')
+        await require_team_role(request.user.user_id, str(pk), Role.OWNER)
         await team.adelete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -74,7 +78,7 @@ class TeamMemberListInviteView(AsyncAPIView):
     async def get(self, request, pk):
 
         await get_team_or_404(str(pk))
-        await require_team_role(request.user.user_id, str(pk), 'owner', 'admin', 'member', 'viewer')
+        await require_team_role(request.user.user_id, str(pk), Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
         memberships = await get_membership_by_team(str(pk))
         serializer = TeamMembershipSerializer(memberships, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -82,13 +86,16 @@ class TeamMemberListInviteView(AsyncAPIView):
     async def post(self, request, pk):
 
         team = await get_team_or_404(str(pk))
-        requester_membership = await require_team_role(request.user.user_id, str(pk), 'owner', 'admin')
+        requester_membership = await require_team_role(request.user.user_id, str(pk), Role.OWNER, Role.ADMIN)
         target_role = request.data.get('role')
         target_email = request.data.get('email')
         if not target_role or not target_email:
             return Response({'detail':'Email and role are required.'}, status=status.HTTP_400_BAD_REQUEST)
         membership = await invite_member(team, requester_membership.role, target_email, target_role) 
-        await send_invitation_email(target_email, team.name, request.user.email)
+        try:
+            await send_invitation_email(target_email, team.name, request.user.email)
+        except (httpx.TransportError, httpx.HTTPStatusError) as e: 
+            logger.error(f'Failed to send invitation email: {e}')
         serializer = TeamMembershipSerializer(membership)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -96,13 +103,13 @@ class TeamMemberDetailView(AsyncAPIView):
 
     async def delete(self, request, pk, user_id):
         await get_team_or_404(str(pk))
-        requester_membership = await require_team_role(request.user.user_id, str(pk), 'owner', 'admin')
+        requester_membership = await require_team_role(request.user.user_id, str(pk), Role.OWNER, Role.ADMIN)
         await remove_member(str(pk), user_id, requester_membership.role)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     async def patch(self, request, pk, user_id):
         team = await get_team_or_404(str(pk))
-        requester_membership = await require_team_role(request.user.user_id, str(pk), 'owner', 'admin')
+        requester_membership = await require_team_role(request.user.user_id, str(pk), Role.OWNER, Role.ADMIN)
         requester_role = requester_membership.role
         target_role = request.data.get('role')
         if not target_role:

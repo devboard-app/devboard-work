@@ -12,6 +12,7 @@ from .repository import (
     get_teams_by_user,
 )
 
+Role = TeamMembership.Role
 
 async def get_team_or_404(pk: str) -> Team:
     team = await get_team_by_id(pk)
@@ -25,7 +26,7 @@ async def list_my_teams(user_id: str):
 
 async def create_team_with_owner(name: str, description: str, owner_id: str):
     team = await create_team(name, description, owner_id)
-    await create_membership(team, owner_id, TeamMembership.Role.OWNER)
+    await create_membership(team, owner_id, Role.OWNER)
     return team    
 
 async def invite_member(team: Team, requester_role: str, email: str, target_role: str) -> TeamMembership:
@@ -43,7 +44,7 @@ async def remove_member(team_id: str, user_id: str, requester_role: str) -> None
     target_membership = await get_membership_by_user_and_team(str(user_id), str(team_id))
     if target_membership is None:
         raise NotFound('User not found')
-    if target_membership.role == 'owner':
+    if target_membership.role == Role.OWNER:
         raise PermissionDenied('Cannot remove a team owner.')
     if not can_assign_role(requester_role, target_membership.role):
         raise PermissionDenied('Cannot remove a member with equal or higher role.')
@@ -55,7 +56,7 @@ async def change_member_role(team_id: str, user_id: str, requester_role: str, ta
         raise NotFound('User not found.')
     if not can_assign_role(requester_role, target_role):
         raise PermissionDenied('You cannot assign this role.')
-    if target_membership.role == 'owner':
+    if target_membership.role == Role.OWNER:
         raise PermissionDenied('You cannot demote the owner.')
     target_membership.role = target_role
     await target_membership.asave()
@@ -65,6 +66,6 @@ async def leave_team(team_id: str, user_id: str) -> None:
     membership = await get_membership_by_user_and_team(user_id, team_id)
     if membership is None:
         raise NotFound('You are not a member of this team.')
-    if membership.role == 'owner':
+    if membership.role == Role.OWNER:
         raise PermissionDenied('Cannot leave team if you are the owner.')
     await delete_membership(membership)
