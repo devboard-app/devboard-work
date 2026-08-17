@@ -19,7 +19,7 @@ async def get_user_id_by_email(email: str) -> str | None:
     response.raise_for_status()
     return response.json().get('user_id')
 
-async def send_invitation_email(to: str, team_name: str, inviter_name: str) -> None:
+async def send_member_notification(to: str, team_name: str, inviter_name: str) -> None:
     payload = {
         "to": to,
         "subject": "You were invited to a team",

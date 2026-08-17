@@ -7,7 +7,7 @@ from rest_framework.response import Response
 
 from work.views import AsyncAPIView
 
-from .infrastructure import send_invitation_email
+from .infrastructure import send_member_notification
 from .models import TeamMembership
 from .permissions import require_team_role
 from .repository import (
@@ -15,10 +15,10 @@ from .repository import (
 )
 from .serializers import TeamMembershipSerializer, TeamSerializer
 from .services import (
+    add_member,
     change_member_role,
     create_team_with_owner,
     get_team_or_404,
-    invite_member,
     leave_team,
     list_my_teams,
     remove_member,
@@ -91,9 +91,9 @@ class TeamMemberListInviteView(AsyncAPIView):
         target_email = request.data.get('email')
         if not target_role or not target_email:
             return Response({'detail':'Email and role are required.'}, status=status.HTTP_400_BAD_REQUEST)
-        membership = await invite_member(team, requester_membership.role, target_email, target_role) 
+        membership = await add_member(team, requester_membership.role, target_email, target_role) 
         try:
-            await send_invitation_email(target_email, team.name, request.user.email)
+            await send_member_notification(target_email, team.name, request.user.email)
         except (httpx.TransportError, httpx.HTTPStatusError) as e: 
             logger.error(f'Failed to send invitation email: {e}')
         serializer = TeamMembershipSerializer(membership)

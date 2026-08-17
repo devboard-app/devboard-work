@@ -29,7 +29,7 @@ async def create_team_with_owner(name: str, description: str, owner_id: str):
     await create_membership(team, owner_id, Role.OWNER)
     return team    
 
-async def invite_member(team: Team, requester_role: str, email: str, target_role: str) -> TeamMembership:
+async def add_member(team: Team, requester_role: str, email: str, target_role: str) -> TeamMembership:
     if not can_assign_role(requester_role, target_role):
         raise PermissionDenied('You cannot assign this role.')
     user_id = await get_user_id_by_email(email)
