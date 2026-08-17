@@ -3,6 +3,8 @@ import re
 from django.db import IntegrityError
 from rest_framework.exceptions import NotFound, ValidationError
 
+from teams.models import Team
+
 from .models import Project, ProjectMembership
 from .repository import (
     create_project,
@@ -32,7 +34,7 @@ async def get_project_or_404(project_id: str) -> Project:
 async def list_team_projects(team_id: str) -> list[Project]:
     return await get_projects_by_team(team_id)
 
-async def create_project_with_lead(name: str, key: str, description: str, team: str, creator_id: str) -> Project:
+async def create_project_with_lead(name: str, key: str, description: str, team: Team, creator_id: str) -> Project:
     validate_key(key)
     try:
         project = await create_project(name, key, description, team, creator_id)

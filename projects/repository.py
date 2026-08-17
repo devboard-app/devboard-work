@@ -1,3 +1,5 @@
+from teams.models import Team
+
 from .models import Project, ProjectMembership
 
 
@@ -5,10 +7,10 @@ async def get_project_by_id(project_id: str) -> Project | None:
     return await Project.objects.filter(id=project_id).afirst()
 
 async def get_projects_by_team(team_id: str) -> list[Project]:
-    return [m async for m in  Project.objects.filter(team=team_id).select_related('project')]
+    return [m async for m in  Project.objects.filter(team=team_id).select_related('team')]
 
 
-async def create_project(name: str, key: str, description: str, team: str, created_by: str) -> Project:
+async def create_project(name: str, key: str, description: str, team: Team, created_by: str) -> Project:
     return await Project.objects.acreate(name=name, key=key, description=description, team=team, created_by=created_by)
 
 async def delete_project(project: Project)-> None:

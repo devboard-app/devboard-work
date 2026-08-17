@@ -3,6 +3,7 @@ from rest_framework import status
 from rest_framework.response import Response
 
 from teams.permissions import require_team_role
+from teams.services import get_team_or_404
 from work.views import AsyncAPIView
 
 from .permissions import require_project_role
@@ -60,7 +61,7 @@ class ProjectListCreateView(AsyncAPIView):
         description = request.data.get('description', '')
         if not name or not key: 
             return Response({'detail': 'Name and key fields are required.'}, status=status.HTTP_400_BAD_REQUEST)
-    
-        project = await create_project_with_lead(name, key, description, team_id, created_by)
+        team = await get_team_or_404(str(team_id))
+        project = await create_project_with_lead(name, key, description, team, created_by)
         serializer = ProjectSerializer(project)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

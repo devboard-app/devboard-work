@@ -15,5 +15,5 @@ urlpatterns = [
     path('<uuid:pk>/members/', TeamMemberListInviteView.as_view(), name='team-member-list-invite'),
     path('<uuid:pk>/members/me/', TeamMemberLeaveView.as_view(), name='team-member-leave'),
     path('<uuid:pk>/members/<uuid:user_id>/', TeamMemberDetailView.as_view(), name='team-member-detail'),
-    path('<uuid:pk>/projects/', include('projects.urls'))
+    path('<uuid:team_id>/projects/', include('projects.urls'))
 ]
