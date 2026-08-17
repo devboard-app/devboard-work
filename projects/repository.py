@@ -27,3 +27,9 @@ async def get_memberships_by_project(project_id: str) -> list[ProjectMembership]
 
 async def delete_project_membership(membership: ProjectMembership) -> None:
     await membership.adelete()
+
+async def update_project_membership(membership: ProjectMembership, role: str) -> ProjectMembership:
+    membership.role = role
+    await membership.asave()
+    return membership
+

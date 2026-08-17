@@ -9,9 +9,11 @@ from .models import Project, ProjectMembership
 from .repository import (
     create_project,
     create_project_membership,
+    get_memberships_by_project,
     get_project_by_id,
     get_project_membership,
     get_projects_by_team,
+    update_project_membership,
 )
 from .repository import (
     delete_project as del_project,
@@ -30,6 +32,12 @@ async def get_project_or_404(project_id: str) -> Project:
     if project is None:
         raise NotFound('Project not found.')
     return project
+
+async def get_project_member_or_404(user_id: str, project_id: str) -> ProjectMembership:
+    membership = await get_project_membership(user_id, project_id)
+    if membership is None:
+        raise NotFound('Member not found in this project.')
+    return membership
 
 async def list_team_projects(team_id: str) -> list[Project]:
     return await get_projects_by_team(team_id)
@@ -69,3 +77,9 @@ async def remove_project_member(project_id: str, user_id: str) -> None:
     if membership is None:
         raise NotFound('Member not found in this project.')
     await del_project_membership(membership)
+
+async def list_project_members(project_id: str) -> list[ProjectMembership]:
+    return await get_memberships_by_project(project_id)
+
+async def update_project_member(membership: ProjectMembership, role: str) -> ProjectMembership:
+    return await update_project_membership(membership, role)
