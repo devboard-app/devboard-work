@@ -1,7 +1,12 @@
 import httpx
 from django.conf import settings
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import APIException, ValidationError
 
+
+class ServiceUnavaiable(APIException):
+    status_code = 502
+    default_detail = 'A downstream service is unavailable.'
+    
 
 async def get_user_id_by_email(email: str) -> str | None:
     try:
@@ -12,7 +17,7 @@ async def get_user_id_by_email(email: str) -> str | None:
                 headers={'X-Service-Key': settings.INTERNAL_API_KEY}
             )
     except httpx.TransportError:
-        raise ValidationError('Could not reach user service.')
+        raise ServiceUnavaiable()
 
     if response.status_code == 404:
         return None
@@ -37,6 +42,6 @@ async def send_member_notification(to: str, team_name: str, inviter_name: str) -
                 headers={'X-Service-Key': settings.INTERNAL_API_KEY}
             )
     except httpx.TransportError:
-        raise ValidationError('Could not reach email service.')
+        raise ServiceUnavaiable()
 
     response.raise_for_status()
