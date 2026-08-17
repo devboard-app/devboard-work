@@ -37,7 +37,7 @@ async def send_member_notification(to: str, team_name: str, inviter_name: str) -
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.post(
-                f'{settings.EMAIL_SERVICE_URL}',
+                f'{settings.EMAIL_SERVICE_URL}/email/send',
                 json=payload,
                 headers={'X-Service-Key': settings.INTERNAL_API_KEY}
             )
