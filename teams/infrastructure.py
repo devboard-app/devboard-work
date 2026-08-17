@@ -1,6 +1,6 @@
 import httpx
 from django.conf import settings
-from rest_framework.exceptions import APIException, ValidationError
+from rest_framework.exceptions import APIException
 
 
 class ServiceUnavaiable(APIException):
