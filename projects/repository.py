@@ -23,3 +23,5 @@ async def get_project_membership(user_id: str, project_id: str) -> ProjectMember
 async def get_memberships_by_project(project_id: str) -> list[ProjectMembership]:
     return [m async for m in ProjectMembership.objects.filter(project=project_id)]
 
+async def delete_project_membership(membership: ProjectMembership) -> None:
+    await membership.adelete()
