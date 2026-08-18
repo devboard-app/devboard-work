@@ -4,10 +4,10 @@ from .models import Ticket
 
 
 async def get_ticket_by_id(ticket_id: str) -> Ticket | None:
-    return await Ticket.objects.filter(id=ticket_id).afirst()
+    return await Ticket.objects.filter(id=ticket_id).prefetch_related('labels').afirst()
 
 async def get_tickets_by_project(project_id: str) -> list[Ticket]:
-    return [m async for m in Ticket.objects.filter(project=project_id)]
+    return [m async for m in Ticket.objects.filter(project=project_id).prefetch_related('labels')]
 
 async def get_next_ticket_number(project_id: str) -> int:
     return await Ticket.objects.filter(project=project_id).acount() + 1
