@@ -1,25 +1,25 @@
-from django.shortcuts import render
 
 from rest_framework import status
 from rest_framework.response import Response
-from work.views import AsyncAPIView
-from .permissions import require_project_role, require_team_role
-from teams.models import TeamMembership
-from projects.models import ProjectMembership
-from .services import (
-    get_label_or_404,
-    list_project_labels,
-    create_label,
-    update_label,
-    delete_label,
-    apply_label_to_ticket,
-    remove_label_from_ticket,
-    get_ticket_labels,
-)
-from projects.services import get_project_or_404
-from tickets.services import get_ticket_or_404
 
-from .serializers import LabelSerializer, LabelListSerializer
+from projects.models import ProjectMembership
+from projects.services import get_project_or_404
+from teams.models import TeamMembership
+from tickets.services import get_ticket_or_404
+from work.views import AsyncAPIView
+
+from .permissions import require_project_role, require_team_role
+from .serializers import LabelListSerializer, LabelSerializer
+from .services import (
+    apply_label_to_ticket,
+    create_label,
+    delete_label,
+    get_label_or_404,
+    get_ticket_labels,
+    list_project_labels,
+    remove_label_from_ticket,
+    update_label,
+)
 
 TeamRole = TeamMembership.Role
 ProjectRole = ProjectMembership.Role
