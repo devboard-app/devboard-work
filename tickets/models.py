@@ -41,6 +41,7 @@ class Ticket(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    labels = models.ManyToManyField('labels.Label', blank=True, related_name='tickets')
     class Meta:
         db_table = 'tickets'
         unique_together : ClassVar = [('project', 'ticket_number')]

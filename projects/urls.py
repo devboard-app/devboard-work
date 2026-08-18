@@ -8,4 +8,6 @@ urlpatterns = [
     path('<uuid:project_id>/members/', ProjectMemberView.as_view()),
     path('<uuid:project_id>/members/<uuid:user_id>/', ProjectMemberView.as_view()),
     path('<uuid:project_id>/tickets/', include('tickets.urls')),
+    path('<uuid:project_id>/labels/', include('labels.urls')),
+    
 ]
