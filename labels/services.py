@@ -1,7 +1,8 @@
 from django.db import IntegrityError
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
 from tickets.models import Ticket
+from tickets.services import can_edit_ticket
 
 from .models import Label
 from .repository import (
@@ -46,12 +47,16 @@ async def update_label(label: Label, data: dict) -> Label:
 async def delete_label(label: Label) -> None:
     await delete_label_repository(label)
 
-async def apply_label_to_ticket(ticket: Ticket, label: Label) -> None:
+async def apply_label_to_ticket(ticket: Ticket, label: Label, requester_id: str, requester_role: str) -> None:
+    if not can_edit_ticket(ticket, requester_id, requester_role):
+        raise PermissionDenied('You cannot edit this ticket')
     if str(ticket.project_id) != str(label.project_id): # type: ignore (project_id is created by django as pointing to Project.id)
         raise ValidationError('Label does not belong to the same project as the ticket.')
     await add_label_to_ticket(ticket, label)
 
-async def remove_label_from_ticket(ticket: Ticket, label: Label) -> None:
+async def remove_label_from_ticket(ticket: Ticket, label: Label, requester_id: str, requester_role: str) -> None:
+    if not can_edit_ticket(ticket, requester_id, requester_role):
+        raise PermissionDenied('You cannot edit this ticket')
     await remove_label_from_ticket_repository(ticket, label)
 
 async def get_ticket_labels(ticket: Ticket) -> list[Label]:
