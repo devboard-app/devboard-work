@@ -40,6 +40,7 @@ class Ticket(models.Model):
     due_date = models.DateField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    story_points = models.PositiveSmallIntegerField(null=True, blank=True)
 
     labels = models.ManyToManyField('labels.Label', blank=True, related_name='tickets')
     sprint = models.ForeignKey('sprints.Sprint', null=True, blank=True, on_delete=models.SET_NULL, related_name='tickets')
