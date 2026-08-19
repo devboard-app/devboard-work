@@ -21,6 +21,10 @@ def can_edit_ticket(ticket: Ticket, requester_id: str, requester_role: str) -> b
 def can_assign_ticket(requester_role) -> bool:
     return requester_role == Role.LEAD
 
+def validate_story_point(story_points: int) -> None:
+    if story_points in [1, 2, 3, 5, 8, 13, 21]:
+        raise ValidationError('Story point must be a Fibonacci number: 1, 2, 3, 5, 8, 13, 21.')
+
 async def _validate_epic_rules(ticket_type: Ticket.Type, project_id: str, requester_role: Role, assignee_id: str | None, parent_epic_id: str | None) -> Ticket | None:
     if ticket_type == Ticket.Type.EPIC:
         if requester_role != Role.LEAD:
@@ -53,10 +57,13 @@ async def list_project_tickets(project_id: str) -> list[Ticket]:
 async def create_ticket(project: Project, created_by: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
     title = data.get('title')
     type = data.get('type')
+    story_points = data.get('story_points')
     if title is None:
         raise ValidationError('Title is required.')
     if type is None:
         raise ValidationError('Type is required.')
+    if story_points:
+        validate_story_point(story_points)
     description = data.get('description', '')
     priority = data.get('priority', Ticket.Priority.MEDIUM)
     status = data.get('status', Ticket.Status.BACKLOG)
@@ -88,7 +95,8 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
         raise PermissionDenied('You cannot edit this ticket') 
     if 'assignee_id' in data and data['assignee_id'] != requester_id and not can_assign_ticket(requester_role):
         raise PermissionDenied('Only Project Lead can assign tickets to others.')
-
+    if 'story_points' in data:
+        validate_story_point(data['story_points'])
     for key, value in data.items():
         setattr(ticket, key, value)
     try:
