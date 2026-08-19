@@ -11,7 +11,7 @@ from .repository import (
     get_next_ticket_number,
     get_ticket_by_id,
     get_tickets_by_project,
-    get_tickets_by_project_and_no_sprint
+    get_tickets_by_project_and_no_sprint,
 )
 from .repository import update_ticket as update_ticket_repository
 
