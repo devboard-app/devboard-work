@@ -11,6 +11,7 @@ from .repository import (
     get_next_ticket_number,
     get_ticket_by_id,
     get_tickets_by_project,
+    get_tickets_by_project_and_no_sprint
 )
 from .repository import update_ticket as update_ticket_repository
 
@@ -125,3 +126,5 @@ async def get_board(project_id: str) -> dict:
         board[ticket.status].append(ticket)
     return {'sprint': sprint, 'board': board}
 
+async def get_backlog(project_id: str) -> list[Ticket]:
+    return await get_tickets_by_project_and_no_sprint(project_id)

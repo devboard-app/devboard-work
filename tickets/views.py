@@ -16,6 +16,7 @@ from .services import (
     get_ticket_or_404,
     list_project_tickets,
     update_ticket,
+    get_backlog,
 )
 
 TeamRole = TeamMembership.Role
@@ -78,3 +79,12 @@ class BoardView(AsyncAPIView):
             'sprint': serialized_sprint,
             'board': serialized_board,
         }, status=status.HTTP_200_OK)
+
+class BacklogView(AsyncAPIView):
+
+    async def get(self, request, team_id, project_id):
+        await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
+        await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
+        tickets = await get_backlog(str(project_id))
+        serializer = TicketSerializer(tickets, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

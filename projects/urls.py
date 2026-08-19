@@ -1,6 +1,6 @@
 from django.urls import include, path
 
-from tickets.views import BoardView
+from tickets.views import BacklogView, BoardView
 
 from .views import ProjectDetailView, ProjectListCreateView, ProjectMemberView
 
@@ -12,5 +12,6 @@ urlpatterns = [
     path('<uuid:project_id>/tickets/', include('tickets.urls')),
     path('<uuid:project_id>/labels/', include('labels.urls')),
     path('<uuid:project_id>/sprints/', include('sprints.urls')),
-    path('<uuid:project_id>/board/', BoardView.as_view())
+    path('<uuid:project_id>/board/', BoardView.as_view()),
+    path('<uuid:project_id>/backlog/', BacklogView.as_view()),
 ]
