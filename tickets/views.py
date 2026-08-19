@@ -3,6 +3,7 @@ from rest_framework.response import Response
 
 from projects.models import ProjectMembership
 from projects.services import get_project_or_404
+from sprints.serializers import SprintListSerializer
 from teams.models import TeamMembership
 from work.views import AsyncAPIView
 
@@ -11,6 +12,7 @@ from .serializers import TicketListSerializer, TicketSerializer
 from .services import (
     create_ticket,
     delete_ticket,
+    get_board,
     get_ticket_or_404,
     list_project_tickets,
     update_ticket,
@@ -58,4 +60,21 @@ class TicketDetailView(AsyncAPIView):
         ticket = await get_ticket_or_404(ticket_id)
         await delete_ticket(ticket)
         return Response(status=status.HTTP_204_NO_CONTENT)
-    
+
+class BoardView(AsyncAPIView):
+
+    async def get(self, request, team_id, project_id):
+        await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
+        await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
+        result = await get_board(str(project_id))
+        if result['sprint'] is None:
+            return Response(result, status=status.HTTP_200_OK)
+        serialized_sprint = SprintListSerializer(result['sprint']).data
+        serialized_board = {}
+        for column, tickets in result['board'].items():
+            serialized_board[column] = TicketSerializer(tickets, many=True).data
+
+        return Response({
+            'sprint': serialized_sprint,
+            'board': serialized_board,
+        }, status=status.HTTP_200_OK)

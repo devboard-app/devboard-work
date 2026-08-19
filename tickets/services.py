@@ -2,6 +2,7 @@ from django.db import IntegrityError
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
 from projects.models import Project, ProjectMembership
+from sprints.repository import get_active_sprint_by_project, get_sprint_tickets
 
 from .models import Ticket
 from .repository import create_ticket as create_ticket_repository
@@ -107,4 +108,20 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
 
 async def delete_ticket(ticket: Ticket) -> None:
     await delete_ticket_repository(ticket)
+
+async def get_board(project_id: str) -> dict:
+    sprint = await get_active_sprint_by_project(project_id)
+    if sprint is None:
+        return {'sprint': None, 'board': {}}
+    tickets = await get_sprint_tickets(sprint)
+    board = {
+        'backlog': [],
+        'todo': [],
+        'in_progress': [],
+        'in_review': [],
+        'done' :[],
+    }
+    for ticket in tickets:
+        board[ticket.status].append(ticket)
+    return {'sprint': sprint, 'board': board}
 
