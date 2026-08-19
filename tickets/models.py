@@ -42,6 +42,7 @@ class Ticket(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     labels = models.ManyToManyField('labels.Label', blank=True, related_name='tickets')
+    sprint = models.ForeignKey('sprints.Sprint', null=True, blank=True, on_delete=models.SET_NULL, related_name='tickets')
     class Meta:
         db_table = 'tickets'
         unique_together : ClassVar = [('project', 'ticket_number')]

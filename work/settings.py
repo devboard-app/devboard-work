@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'projects',
     'tickets',
     'labels',
+    'sprints',
 ]
 
 MIDDLEWARE = [
