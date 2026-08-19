@@ -22,7 +22,7 @@ def can_assign_ticket(requester_role) -> bool:
     return requester_role == Role.LEAD
 
 def validate_story_point(story_points: int) -> None:
-    if story_points in [1, 2, 3, 5, 8, 13, 21]:
+    if story_points not in [1, 2, 3, 5, 8, 13, 21]:
         raise ValidationError('Story point must be a Fibonacci number: 1, 2, 3, 5, 8, 13, 21.')
 
 async def _validate_epic_rules(ticket_type: Ticket.Type, project_id: str, requester_role: Role, assignee_id: str | None, parent_epic_id: str | None) -> Ticket | None:
