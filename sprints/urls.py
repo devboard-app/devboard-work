@@ -10,7 +10,7 @@ from .views import (
 
 urlpatterns = [
     path('', SprintListCreateView.as_view()),
-    path('<uuid:sprint_id>', SprintDetailView.as_view()),
+    path('<uuid:sprint_id>/', SprintDetailView.as_view()),
     path('<uuid:sprint_id>/start/', SprintStartView.as_view()),
     path('<uuid:sprint_id>/complete/', SprintCompleteView.as_view()),
     path('<uuid:sprint_id>/tickets/', SprintTicketView.as_view()),

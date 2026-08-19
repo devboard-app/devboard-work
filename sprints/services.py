@@ -1,5 +1,3 @@
-from asgiref.sync import sync_to_async
-from django.db import transaction
 from rest_framework.exceptions import NotFound, ValidationError
 
 from projects.models import Project
@@ -18,7 +16,6 @@ from .repository import (
 )
 from .repository import update_sprint as update_sprint_repository
 
-atomic = sync_to_async(transaction.atomic)
 
 async def get_sprint_or_404(sprint_id: str) -> Sprint:
     sprint = await get_sprint_by_id(sprint_id)
@@ -65,15 +62,14 @@ async def start_sprint(sprint: Sprint, project_id: str) -> Sprint:
 async def complete_sprint(sprint: Sprint) -> Sprint:
     if sprint.status != Sprint.Status.ACTIVE:
         raise ValidationError('You can only complete Active sprints.')
-    with await atomic():
-        await move_unfinished_tickets_to_backlog(sprint)
-        sprint.status = Sprint.Status.COMPLETED
-        return await update_sprint_repository(sprint)
+    await move_unfinished_tickets_to_backlog(sprint)
+    sprint.status = Sprint.Status.COMPLETED
+    return await update_sprint_repository(sprint)
 
 async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket) -> None:
     if sprint.status == Sprint.Status.COMPLETED:
         raise ValidationError('You cannot add tickets to a completed sprint.')
-    if sprint.project != ticket.project:
+    if sprint.project_id != ticket.project_id: #type: ignore
         raise ValidationError('Ticket does not belong to this project.')
     if ticket.sprint is not None:
         raise ValidationError('Ticket is already on another sprint.')
@@ -86,4 +82,3 @@ async def remove_ticket_from_sprint(ticket: Ticket) -> None:
 
 async def list_sprint_tickets(sprint: Sprint) -> list[Ticket]:
     return await get_sprint_tickets(sprint)
-    
