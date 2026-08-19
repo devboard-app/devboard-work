@@ -12,11 +12,11 @@ from .serializers import TicketListSerializer, TicketSerializer
 from .services import (
     create_ticket,
     delete_ticket,
+    get_backlog,
     get_board,
     get_ticket_or_404,
     list_project_tickets,
     update_ticket,
-    get_backlog,
 )
 
 TeamRole = TeamMembership.Role
