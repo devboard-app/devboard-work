@@ -31,7 +31,13 @@ async def list_project_sprints(project_id: str) -> list[Sprint]:
 
 
 async def create_sprint(project: Project, created_by: str, data: dict) -> Sprint:
-    return await create_sprint_repository(data['name'], data['goal'], data.get('start_date'), data.get('end_date'), project, created_by)
+    name = data.get('name')
+    if name is None:
+        raise ValidationError('Name is required.')
+    goal = data.get('goal', '')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    return await create_sprint_repository(name, goal, start_date, end_date, project, created_by)
 
 async def update_sprint(sprint: Sprint, data: dict) -> Sprint:
     if sprint.status != Sprint.Status.CREATED:
@@ -77,3 +83,7 @@ async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket) -> None:
 async def remove_ticket_from_sprint(ticket: Ticket) -> None:
     ticket.sprint = None
     await update_ticket(ticket)
+
+async def list_sprint_tickets(sprint: Sprint) -> list[Ticket]:
+    return await get_sprint_tickets(sprint)
+    
