@@ -10,7 +10,6 @@ async def publish_ticket_assigned(ticket, actor_id: str, recipient_id: str) -> N
     await publish_event(
         "ticket.assigned",
         project_id=ticket.project_id,
-        team_id=ticket.project.team_id,
         actor_id=actor_id,
         recipient_id=recipient_id,
         ticket_id=ticket.id,
@@ -21,7 +20,6 @@ async def publish_ticket_created(ticket, actor_id: str) -> None:
     await publish_event(
         "ticket.created",
         project_id=ticket.project_id,
-        team_id=ticket.project.team_id,
         actor_id=actor_id,
         ticket_id=ticket.id,
         ticket_key=ticket.key,
@@ -31,7 +29,6 @@ async def publish_ticket_status_changed(ticket, actor_id: str, recipient_id: str
     await publish_event(
         "ticket.status_changed",
         project_id=ticket.project_id,
-        team_id=ticket.project.team_id,
         actor_id=actor_id,
         recipient_id=recipient_id,
         ticket_id=ticket.id,
