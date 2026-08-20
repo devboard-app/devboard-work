@@ -8,6 +8,7 @@ services:
     environment:
       DB_HOST: devboard-db
       DB_PORT: 5432
+      REDIS_URL: redis://devboard-redis:6379/0
     ports:
       - "8004:8000"
     networks:

@@ -3,6 +3,11 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 
 from projects.models import Project, ProjectMembership
 from sprints.repository import get_active_sprint_by_project, get_sprint_tickets
+from work.infrastructure.events import (
+    publish_ticket_assigned,
+    publish_ticket_created,
+    publish_ticket_status_changed,
+)
 
 from .models import Ticket
 from .repository import create_ticket as create_ticket_repository
@@ -77,7 +82,7 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
     ticket_number = await get_next_ticket_number(str(project.id))
     key = f'{project.key}-{ticket_number}'
     try:
-        return await create_ticket_repository(title=title,
+        ticket = await create_ticket_repository(title=title,
                                         description=description,
                                         type=type,
                                         priority=priority,
@@ -92,6 +97,16 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
     except IntegrityError:
         raise ValidationError('Something went wrong, please try again.')
     
+    try:
+        await publish_ticket_created(ticket, actor_id=created_by)
+
+        if assignee_id:
+            await publish_ticket_assigned(ticket, actor_id=created_by, recipient_id=assignee_id)
+    except Exception: #noqa redis failure
+        pass    
+
+    return ticket
+    
 async def update_ticket(ticket: Ticket, requester_id: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket') 
@@ -99,12 +114,26 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
         raise PermissionDenied('Only Project Lead can assign tickets to others.')
     if 'story_points' in data:
         validate_story_point(data['story_points'])
+
+    old_assignee_id = str(ticket.assignee_id) if ticket.assignee_id else None
+    old_status = ticket.status  
+    
     for key, value in data.items():
         setattr(ticket, key, value)
     try:
         await update_ticket_repository(ticket)
     except IntegrityError:
         raise ValidationError('A ticket with this key already exists.')
+
+    new_assignee_id = data.get('assignee_id')
+    try:
+        if new_assignee_id and new_assignee_id != old_assignee_id:
+            await publish_ticket_assigned(ticket, actor_id=requester_id, recipient_id=new_assignee_id)
+
+        if 'status' in data and data['status'] != old_status and ticket.assignee_id:
+            await publish_ticket_status_changed(ticket, actor_id=requester_id, recipient_id=str(ticket.assignee_id))
+    except Exception: # noqa redis failure
+        pass
     return ticket
 
 async def delete_ticket(ticket: Ticket) -> None:
