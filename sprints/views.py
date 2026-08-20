@@ -74,7 +74,7 @@ class SprintStartView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
         sprint = await get_sprint_or_404(str(sprint_id))
-        started_sprint = await start_sprint(sprint, project_id)
+        started_sprint = await start_sprint(sprint, project_id, team_id, request.user.user_id)
         serializer = SprintSerializer(started_sprint)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -84,7 +84,7 @@ class SprintCompleteView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
         sprint = await get_sprint_or_404(str(sprint_id))
-        completed_sprint = await complete_sprint(sprint)
+        completed_sprint = await complete_sprint(sprint, team_id, request.user.user_id)
         serializer = SprintSerializer(completed_sprint)
         return Response(serializer.data, status=status.HTTP_200_OK)
 

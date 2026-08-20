@@ -15,6 +15,7 @@ psycopg==3.3.4
 psycopg-binary==3.3.4
 pyasn1==0.6.4
 python-jose==3.5.0
+redis==8.1.0
 rsa==4.9.1
 six==1.17.0
 sqlparse==0.5.5
