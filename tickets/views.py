@@ -33,7 +33,7 @@ class TicketListCreateView(AsyncAPIView):
     async def post(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         membership = await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
-        ticket = await create_ticket(await get_project_or_404(project_id), request.user.user_id, ProjectMembership.Role(membership.role), request.data)
+        ticket = await create_ticket(await get_project_or_404(project_id, team_id), request.user.user_id, ProjectMembership.Role(membership.role), request.data)
         ticket = await get_ticket_or_404(str(ticket.id))
         serializer = TicketSerializer(ticket)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

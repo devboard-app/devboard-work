@@ -39,7 +39,7 @@ class SprintListCreateView(AsyncAPIView):
     async def post(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
-        project = await get_project_or_404(project_id)
+        project = await get_project_or_404(project_id, team_id)
         sprint = await create_sprint(project, request.user.user_id, request.data)
         serializer = SprintSerializer(sprint)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

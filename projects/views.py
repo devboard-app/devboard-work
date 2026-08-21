@@ -30,14 +30,14 @@ class ProjectDetailView(AsyncAPIView):
     async def get(self, request, team_id, project_id):
         user_id = request.user.user_id
         await require_team_role(user_id, team_id, Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
-        project = await get_project_or_404(project_id)
+        project = await get_project_or_404(project_id, team_id)
         serializer = ProjectSerializer(project)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     async def patch(self, request, team_id, project_id):
         user_id = request.user.user_id
         await require_team_role(user_id, team_id, Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
-        project = await get_project_or_404(project_id)
+        project = await get_project_or_404(project_id, team_id)
         await require_project_role(user_id, project_id, 'lead')
         updated_project= await update_project(project, request.data)
         serializer = ProjectSerializer(updated_project)
@@ -46,7 +46,7 @@ class ProjectDetailView(AsyncAPIView):
     async def delete(self, request, team_id, project_id):
         user_id = request.user.user_id
         await require_team_role(user_id, team_id, Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
-        project = await get_project_or_404(project_id)
+        project = await get_project_or_404(project_id, team_id)
         await require_project_role(user_id, project_id, 'lead')
         await delete_project(project)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -79,7 +79,7 @@ class ProjectMemberView(AsyncAPIView):
     async def get(self, request, team_id, project_id):
         user_id = request.user.user_id
         await require_team_role(user_id, team_id, Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
-        await get_project_or_404(project_id)
+        await get_project_or_404(project_id, team_id)
         memberships = await list_project_members(project_id)
         serializer = ProjectMembershipSerializer(memberships, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -87,7 +87,7 @@ class ProjectMemberView(AsyncAPIView):
     async def post(self, request, team_id, project_id):
         user_id = request.user.user_id
         await require_team_role(user_id, team_id, Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
-        project = await get_project_or_404(str(project_id))
+        project = await get_project_or_404(str(project_id), team_id)
         await require_project_role(user_id, str(project_id), ProjectMembership.Role.LEAD)
         target_user_id = request.data.get('user_id')
         role = request.data.get('role')
@@ -100,7 +100,7 @@ class ProjectMemberView(AsyncAPIView):
     async def delete(self, request, team_id, project_id, user_id):
         requester_id = request.user.user_id
         await require_team_role(requester_id, team_id, Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
-        await get_project_or_404(str(project_id))
+        await get_project_or_404(str(project_id), team_id)
         await require_project_role(requester_id, str(project_id), ProjectMembership.Role.LEAD)
         await remove_project_member(str(project_id), str(user_id))
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -108,7 +108,7 @@ class ProjectMemberView(AsyncAPIView):
     async def patch(self, request, team_id, project_id, user_id):
         requester_id = request.user.user_id
         await require_team_role(requester_id, team_id, Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
-        await get_project_or_404(str(project_id))
+        await get_project_or_404(str(project_id), team_id)
         await require_project_role(requester_id, str(project_id), ProjectMembership.Role.LEAD)
         target_role = request.data.get('role')
         if not target_role:

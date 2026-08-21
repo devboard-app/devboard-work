@@ -36,7 +36,7 @@ class LabelListCreateView(AsyncAPIView):
     async def post(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
-        label = await create_label(await get_project_or_404(project_id) , request.data)
+        label = await create_label(await get_project_or_404(project_id, team_id) , request.data)
         serializer = LabelSerializer(label)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 

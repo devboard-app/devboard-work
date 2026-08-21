@@ -27,8 +27,8 @@ def validate_key(key: str) -> None:
     if not re.match(r'^[A-Z0-9]{2,10}$', key):
         raise ValidationError('Key must be 2-10 uppercase alphanumeric characters')
 
-async def get_project_or_404(project_id: str) -> Project:
-    project = await get_project_by_id(project_id)
+async def get_project_or_404(project_id: str, team_id: str) -> Project:
+    project = await get_project_by_id(project_id, team_id)
     if project is None:
         raise NotFound('Project not found.')
     return project
