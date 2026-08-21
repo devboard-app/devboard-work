@@ -93,6 +93,7 @@ class ProjectMemberView(AsyncAPIView):
         role = request.data.get('role')
         if not target_user_id or not role:
             raise ValidationError('user_id and role are required.')
+        await require_team_role(target_user_id, team_id, Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
         membership = await add_project_member(project, target_user_id, role)
         serializer = ProjectMembershipSerializer(membership)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
