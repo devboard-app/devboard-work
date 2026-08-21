@@ -3,8 +3,8 @@ from teams.models import Team
 from .models import Project, ProjectMembership
 
 
-async def get_project_by_id(project_id: str) -> Project | None:
-    return await Project.objects.filter(id=project_id).afirst()
+async def get_project_by_id(project_id: str, team_id: str) -> Project | None:
+    return await Project.objects.filter(id=project_id, team_id=team_id).afirst()
 
 async def get_projects_by_team(team_id: str) -> list[Project]:
     return [m async for m in  Project.objects.filter(team=team_id).select_related('team')]

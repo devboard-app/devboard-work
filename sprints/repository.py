@@ -6,8 +6,8 @@ from tickets.models import Ticket
 from .models import Sprint
 
 
-async def get_sprint_by_id(sprint_id: str) -> Sprint | None:
-    return await Sprint.objects.filter(id=sprint_id).afirst()
+async def get_sprint_by_id(sprint_id: str, project_id: str) -> Sprint | None:
+    return await Sprint.objects.filter(id=sprint_id, project_id=project_id).afirst()
 
 async def get_sprints_by_project(project_id: str) -> list[Sprint]:
     return [m async for m in Sprint.objects.filter(project=project_id)]

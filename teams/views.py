@@ -73,7 +73,7 @@ class TeamDetailView(AsyncAPIView):
         await team.adelete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class TeamMemberListInviteView(AsyncAPIView):
+class TeamMemberListAddView(AsyncAPIView):
 
     async def get(self, request, pk):
 

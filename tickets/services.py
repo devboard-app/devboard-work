@@ -42,18 +42,16 @@ async def _validate_epic_rules(ticket_type: Ticket.Type, project_id: str, reques
             raise ValidationError('Epic cannot have a parent epic.')
         return None
     if parent_epic_id:
-        parent_epic = await get_ticket_by_id(parent_epic_id)
+        parent_epic = await get_ticket_by_id(parent_epic_id, project_id)
         if parent_epic is None:
             raise ValidationError('Parent epic not found.')
         if parent_epic.type != Ticket.Type.EPIC:
             raise ValidationError('parent_epic must be of type Epic.')
-        if str(parent_epic.project_id) != str(project_id): # type: ignore (project_id is created by django as pointing to Project.id)
-            raise ValidationError('Parent epic must belong to the same project.')
         return parent_epic
     return None
 
-async def get_ticket_or_404(ticket_id: str) -> Ticket:
-    ticket = await get_ticket_by_id(ticket_id)
+async def get_ticket_or_404(ticket_id: str, project_id: str) -> Ticket:
+    ticket = await get_ticket_by_id(ticket_id, project_id)
     if ticket is None:
         raise NotFound('Ticket not found.')
     return ticket
@@ -108,29 +106,31 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
     return ticket
     
 async def update_ticket(ticket: Ticket, requester_id: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
+    allowed_fields = ['title', 'description', 'type', 'priority', 'status', 'assignee_id', 'story_points', 'parent_epic', 'due_date']
+    filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket') 
-    if 'assignee_id' in data and data['assignee_id'] != requester_id and not can_assign_ticket(requester_role):
+    if 'assignee_id' in filtered_data and filtered_data['assignee_id'] != requester_id and not can_assign_ticket(requester_role):
         raise PermissionDenied('Only Project Lead can assign tickets to others.')
-    if 'story_points' in data:
-        validate_story_point(data['story_points'])
+    if 'story_points' in filtered_data:
+        validate_story_point(filtered_data['story_points'])
 
     old_assignee_id = str(ticket.assignee_id) if ticket.assignee_id else None
     old_status = ticket.status  
-    
-    for key, value in data.items():
+
+    for key, value in filtered_data.items():
         setattr(ticket, key, value)
     try:
         await update_ticket_repository(ticket)
     except IntegrityError:
         raise ValidationError('A ticket with this key already exists.')
 
-    new_assignee_id = data.get('assignee_id')
+    new_assignee_id = filtered_data.get('assignee_id')
     try:
         if new_assignee_id and new_assignee_id != old_assignee_id:
             await publish_ticket_assigned(ticket, actor_id=requester_id, recipient_id=new_assignee_id)
 
-        if 'status' in data and data['status'] != old_status and ticket.assignee_id:
+        if 'status' in filtered_data and filtered_data['status'] != old_status and ticket.assignee_id:
             await publish_ticket_status_changed(ticket, actor_id=requester_id, recipient_id=str(ticket.assignee_id))
     except Exception: # noqa redis failure
         pass
