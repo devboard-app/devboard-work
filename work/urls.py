@@ -17,7 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
+from teams.internal_views import InternalTeamCheckView
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/teams/', include('teams.urls'))
+    path('api/teams/', include('teams.urls')),
+    path('api/internal/teams/<uuid:team_id>/members/<uuid:user_id>/', InternalTeamCheckView.as_view(), name='internal-team-check'),
 ]
