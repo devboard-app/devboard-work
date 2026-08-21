@@ -41,6 +41,7 @@ async def publish_sprint_started(sprint, team_id: str, actor_id: str) -> None:
         team_id=team_id,
         actor_id=actor_id,
         sprint_id=sprint.id,
+        sprint_name=sprint.name,
     )
 
 async def publish_sprint_completed(sprint, team_id: str, actor_id: str) -> None:
@@ -49,4 +50,5 @@ async def publish_sprint_completed(sprint, team_id: str, actor_id: str) -> None:
         team_id=team_id,
         actor_id=actor_id,
         sprint_id=sprint.id,
+        sprint_name=sprint.name,
     )
