@@ -61,7 +61,7 @@ async def get_ticket_or_404(ticket_id: str) -> Ticket:
 async def list_project_tickets(project_id: str) -> list[Ticket]:
     return await get_tickets_by_project(project_id)
 
-async def create_ticket(project: Project, created_by: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
+async def create_ticket(project: Project, team_id: str, created_by: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
     title = data.get('title')
     type = data.get('type')
     story_points = data.get('story_points')
@@ -98,16 +98,16 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
         raise ValidationError('Something went wrong, please try again.')
     
     try:
-        await publish_ticket_created(ticket, actor_id=created_by)
+        await publish_ticket_created(ticket, actor_id=created_by, team_id=team_id)
 
         if assignee_id:
-            await publish_ticket_assigned(ticket, actor_id=created_by, recipient_id=assignee_id)
+            await publish_ticket_assigned(ticket, actor_id=created_by, recipient_id=assignee_id, team_id=team_id)
     except Exception: #noqa redis failure
         pass    
 
     return ticket
     
-async def update_ticket(ticket: Ticket, requester_id: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
+async def update_ticket(ticket: Ticket, team_id: str, requester_id: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket') 
     if 'assignee_id' in data and data['assignee_id'] != requester_id and not can_assign_ticket(requester_role):
@@ -128,7 +128,7 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
     new_assignee_id = data.get('assignee_id')
     try:
         if new_assignee_id and new_assignee_id != old_assignee_id:
-            await publish_ticket_assigned(ticket, actor_id=requester_id, recipient_id=new_assignee_id)
+            await publish_ticket_assigned(ticket, actor_id=requester_id, recipient_id=new_assignee_id, team_id=team_id)
 
         if 'status' in data and data['status'] != old_status and ticket.assignee_id:
             await publish_ticket_status_changed(ticket, actor_id=requester_id, recipient_id=str(ticket.assignee_id))

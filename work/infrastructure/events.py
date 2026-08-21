@@ -6,20 +6,22 @@ async def publish_event(event: str, **kwargs) -> None:
     data = {"event": event, **kwargs}
     await redis_client.xadd(STREAM, {k: str(v) for k, v in data.items()})
 
-async def publish_ticket_assigned(ticket, actor_id: str, recipient_id: str) -> None:
+async def publish_ticket_assigned(ticket, actor_id: str, recipient_id: str, team_id: str) -> None:
     await publish_event(
         "ticket.assigned",
         project_id=ticket.project_id,
+        team_id=team_id,
         actor_id=actor_id,
         recipient_id=recipient_id,
         ticket_id=ticket.id,
         ticket_key=ticket.key,
     )
 
-async def publish_ticket_created(ticket, actor_id: str) -> None:
+async def publish_ticket_created(ticket, actor_id: str, team_id: str) -> None:
     await publish_event(
         "ticket.created",
         project_id=ticket.project_id,
+        team_id=team_id,
         actor_id=actor_id,
         ticket_id=ticket.id,
         ticket_key=ticket.key,
