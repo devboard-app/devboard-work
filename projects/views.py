@@ -38,7 +38,7 @@ class ProjectDetailView(AsyncAPIView):
         user_id = request.user.user_id
         await require_team_role(user_id, team_id, Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
         project = await get_project_or_404(project_id, team_id)
-        await require_project_role(user_id, project_id, 'lead')
+        await require_project_role(user_id, project_id, ProjectMembership.Role.LEAD)
         updated_project= await update_project(project, request.data)
         serializer = ProjectSerializer(updated_project)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -47,7 +47,7 @@ class ProjectDetailView(AsyncAPIView):
         user_id = request.user.user_id
         await require_team_role(user_id, team_id, Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
         project = await get_project_or_404(project_id, team_id)
-        await require_project_role(user_id, project_id, 'lead')
+        await require_project_role(user_id, project_id, ProjectMembership.Role.LEAD)
         await delete_project(project)
         return Response(status=status.HTTP_204_NO_CONTENT)
 

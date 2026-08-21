@@ -23,4 +23,4 @@ async def delete_membership(membership: TeamMembership) -> None:
     await membership.adelete()
 
 async def count_owners(team_id: str) -> int:
-    return await TeamMembership.objects.filter(team_id=team_id, role='owner').acount()
+    return await TeamMembership.objects.filter(team_id=team_id, role=TeamMembership.Role.OWNER).acount()
