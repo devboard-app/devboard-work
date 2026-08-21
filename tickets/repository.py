@@ -1,3 +1,5 @@
+from django.db.models import Max
+
 from projects.models import Project
 
 from .models import Ticket
@@ -10,7 +12,8 @@ async def get_tickets_by_project(project_id: str) -> list[Ticket]:
     return [m async for m in Ticket.objects.filter(project=project_id).prefetch_related('labels')]
 
 async def get_next_ticket_number(project_id: str) -> int:
-    return await Ticket.objects.filter(project=project_id).acount() + 1
+    result = await Ticket.objects.filter(project=project_id).aaggregate(max_number=Max('ticket_number'))
+    return (result['max_number'] or 0) +1
 
 async def create_ticket(
         title: str,
