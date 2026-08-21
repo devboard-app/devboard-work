@@ -3,8 +3,8 @@ from projects.models import Project
 from .models import Ticket
 
 
-async def get_ticket_by_id(ticket_id: str) -> Ticket | None:
-    return await Ticket.objects.filter(id=ticket_id).prefetch_related('labels').afirst()
+async def get_ticket_by_id(ticket_id: str, project_id: str) -> Ticket | None:
+    return await Ticket.objects.filter(id=ticket_id, project_id=project_id).prefetch_related('labels').afirst()
 
 async def get_tickets_by_project(project_id: str) -> list[Ticket]:
     return [m async for m in Ticket.objects.filter(project=project_id).prefetch_related('labels')]

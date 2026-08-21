@@ -17,8 +17,8 @@ from .repository import remove_label_from_ticket as remove_label_from_ticket_rep
 from .repository import update_label as update_label_repository
 
 
-async def get_label_or_404(label_id: str) -> Label:
-    label = await get_label_by_id(label_id)
+async def get_label_or_404(label_id: str, project_id: str) -> Label:
+    label = await get_label_by_id(label_id, project_id)
     if label is None:
         raise NotFound('Label not found')
     return label
@@ -50,8 +50,6 @@ async def delete_label(label: Label) -> None:
 async def apply_label_to_ticket(ticket: Ticket, label: Label, requester_id: str, requester_role: str) -> None:
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket')
-    if str(ticket.project_id) != str(label.project_id): # type: ignore (project_id is created by django as pointing to Project.id)
-        raise ValidationError('Label does not belong to the same project as the ticket.')
     await add_label_to_ticket(ticket, label)
 
 async def remove_label_from_ticket(ticket: Ticket, label: Label, requester_id: str, requester_role: str) -> None:

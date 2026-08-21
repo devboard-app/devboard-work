@@ -21,8 +21,8 @@ from .repository import (
 from .repository import update_sprint as update_sprint_repository
 
 
-async def get_sprint_or_404(sprint_id: str) -> Sprint:
-    sprint = await get_sprint_by_id(sprint_id)
+async def get_sprint_or_404(sprint_id: str, project_id: str) -> Sprint:
+    sprint = await get_sprint_by_id(sprint_id, project_id)
     if sprint is None:
         raise NotFound('Sprint not found.')
     return sprint

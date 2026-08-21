@@ -42,18 +42,16 @@ async def _validate_epic_rules(ticket_type: Ticket.Type, project_id: str, reques
             raise ValidationError('Epic cannot have a parent epic.')
         return None
     if parent_epic_id:
-        parent_epic = await get_ticket_by_id(parent_epic_id)
+        parent_epic = await get_ticket_by_id(parent_epic_id, project_id)
         if parent_epic is None:
             raise ValidationError('Parent epic not found.')
         if parent_epic.type != Ticket.Type.EPIC:
             raise ValidationError('parent_epic must be of type Epic.')
-        if str(parent_epic.project_id) != str(project_id): # type: ignore (project_id is created by django as pointing to Project.id)
-            raise ValidationError('Parent epic must belong to the same project.')
         return parent_epic
     return None
 
-async def get_ticket_or_404(ticket_id: str) -> Ticket:
-    ticket = await get_ticket_by_id(ticket_id)
+async def get_ticket_or_404(ticket_id: str, project_id: str) -> Ticket:
+    ticket = await get_ticket_by_id(ticket_id, project_id)
     if ticket is None:
         raise NotFound('Ticket not found.')
     return ticket
