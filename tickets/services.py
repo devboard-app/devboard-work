@@ -106,29 +106,31 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
     return ticket
     
 async def update_ticket(ticket: Ticket, requester_id: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
+    allowed_fields = ['title', 'description', 'type', 'priority', 'status', 'assignee_id', 'story_points', 'parent_epic', 'due_date']
+    filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket') 
-    if 'assignee_id' in data and data['assignee_id'] != requester_id and not can_assign_ticket(requester_role):
+    if 'assignee_id' in filtered_data and filtered_data['assignee_id'] != requester_id and not can_assign_ticket(requester_role):
         raise PermissionDenied('Only Project Lead can assign tickets to others.')
-    if 'story_points' in data:
-        validate_story_point(data['story_points'])
+    if 'story_points' in filtered_data:
+        validate_story_point(filtered_data['story_points'])
 
     old_assignee_id = str(ticket.assignee_id) if ticket.assignee_id else None
     old_status = ticket.status  
-    
-    for key, value in data.items():
+
+    for key, value in filtered_data.items():
         setattr(ticket, key, value)
     try:
         await update_ticket_repository(ticket)
     except IntegrityError:
         raise ValidationError('A ticket with this key already exists.')
 
-    new_assignee_id = data.get('assignee_id')
+    new_assignee_id = filtered_data.get('assignee_id')
     try:
         if new_assignee_id and new_assignee_id != old_assignee_id:
             await publish_ticket_assigned(ticket, actor_id=requester_id, recipient_id=new_assignee_id)
 
-        if 'status' in data and data['status'] != old_status and ticket.assignee_id:
+        if 'status' in filtered_data and filtered_data['status'] != old_status and ticket.assignee_id:
             await publish_ticket_status_changed(ticket, actor_id=requester_id, recipient_id=str(ticket.assignee_id))
     except Exception: # noqa redis failure
         pass

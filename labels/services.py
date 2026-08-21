@@ -37,7 +37,10 @@ async def create_label(project, data) -> Label:
         raise ValidationError('A label with this name already exists in this project.')
 
 async def update_label(label: Label, data: dict) -> Label:
-    for key, value in data.items():
+    allowed_fields = ['name', 'color']
+    filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
+
+    for key, value in filtered_data.items():
         setattr(label, key, value)
     try:
         return await update_label_repository(label=label)

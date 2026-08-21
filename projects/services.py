@@ -52,9 +52,11 @@ async def create_project_with_lead(name: str, key: str, description: str, team: 
     return project
 
 async def update_project(project: Project, data: dict) -> Project:
-    if 'key' in data:
-        validate_key(data['key'])
-    for key, value in data.items():
+    allowed_fields = ['name', 'key', 'description']
+    filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
+    if 'key' in filtered_data:
+        validate_key(filtered_data['key'])
+    for key, value in filtered_data.items():
         setattr(project, key, value)
     try:
         await project.asave()

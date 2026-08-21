@@ -41,9 +41,11 @@ async def create_sprint(project: Project, created_by: str, data: dict) -> Sprint
     return await create_sprint_repository(name, goal, start_date, end_date, project, created_by)
 
 async def update_sprint(sprint: Sprint, data: dict) -> Sprint:
+    allowed_fields = ['name', 'goal', 'start_date', 'end_date']
+    filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
     if sprint.status != Sprint.Status.CREATED:
         raise ValidationError('You cannot edit Active or Completed sprints.')
-    for key, value in data.items():
+    for key, value in filtered_data.items():
         setattr(sprint, key, value)
     return await update_sprint_repository(sprint)
 
