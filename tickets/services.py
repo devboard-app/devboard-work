@@ -131,7 +131,7 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
             await publish_ticket_assigned(ticket, actor_id=requester_id, recipient_id=new_assignee_id)
 
         if 'status' in filtered_data and filtered_data['status'] != old_status and ticket.assignee_id:
-            await publish_ticket_status_changed(ticket, actor_id=requester_id, recipient_id=str(ticket.assignee_id))
+            await publish_ticket_status_changed(ticket, actor_id=requester_id, recipient_id=str(ticket.assignee_id), from_status=old_status, to_status=ticket.status)
     except Exception: # noqa redis failure
         pass
     return ticket
