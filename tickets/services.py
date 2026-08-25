@@ -117,7 +117,7 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
         raise PermissionDenied('You cannot edit this ticket') 
     if 'assignee_id' in filtered_data and filtered_data['assignee_id'] != requester_id and not can_assign_ticket(requester_role):
         raise PermissionDenied('Only Project Lead can assign tickets to others.')
-    if 'story_points' in filtered_data:
+    if 'story_points' in filtered_data and filtered_data['story_points'] is not None:
         validate_story_point(filtered_data['story_points'])
 
     old_snapshot= _snapshot_ticket(ticket)
