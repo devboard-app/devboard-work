@@ -1,5 +1,5 @@
 from rest_framework.exceptions import NotFound, ValidationError
-
+from django.db import IntegrityError
 from projects.models import Project
 from tickets.models import Ticket
 from tickets.repository import update_ticket
@@ -64,7 +64,10 @@ async def start_sprint(sprint: Sprint, project_id: str, team_id: str, actor_id: 
     if not await get_sprint_tickets(sprint):
         raise ValidationError('Sprint must have at least one ticket.')
     sprint.status = Sprint.Status.ACTIVE
-    sprint = await update_sprint_repository(sprint)
+    try:
+        sprint = await update_sprint_repository(sprint)
+    except IntegrityError:
+        raise ValidationError("There\'s already an active Sprint.")
     try:
         await publish_sprint_started(sprint, team_id=team_id, actor_id=actor_id)
     except Exception: #noqa redis failure
