@@ -6,6 +6,8 @@ from tickets.repository import update_ticket
 from work.infrastructure.events import (
     publish_sprint_completed,
     publish_sprint_started,
+    publish_ticket_added_to_sprint,
+    publish_ticket_removed_from_sprint,
 )
 
 from .models import Sprint
@@ -81,7 +83,7 @@ async def complete_sprint(sprint: Sprint, team_id: str, actor_id: str) -> Sprint
         pass
     return sprint
 
-async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket) -> None:
+async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket, actor_id: str) -> None:
     if sprint.status == Sprint.Status.COMPLETED:
         raise ValidationError('You cannot add tickets to a completed sprint.')
     if sprint.project_id != ticket.project_id: #type: ignore
@@ -90,10 +92,18 @@ async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket) -> None:
         raise ValidationError('Ticket is already on another sprint.')
     ticket.sprint = sprint #type: ignore
     await update_ticket(ticket)
+    try:
+        await publish_ticket_added_to_sprint(ticket=ticket, actor_id=actor_id, sprint=sprint)
+    except Exception: # noqa redis failure
+        pass
 
-async def remove_ticket_from_sprint(ticket: Ticket) -> None:
+async def remove_ticket_from_sprint(ticket: Ticket, sprint: Sprint, actor_id: str) -> None:
     ticket.sprint = None
     await update_ticket(ticket)
+    try:
+        await publish_ticket_removed_from_sprint(ticket=ticket, actor_id=actor_id, sprint=sprint)
+    except Exception: # noqa redis failure
+        pass
 
 async def list_sprint_tickets(sprint: Sprint) -> list[Ticket]:
     return await get_sprint_tickets(sprint)

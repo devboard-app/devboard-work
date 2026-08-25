@@ -106,7 +106,7 @@ class SprintTicketView(AsyncAPIView):
         if ticket_id is None:
             raise ValidationError('ticket_id is required.')
         ticket = await get_ticket_or_404(str(ticket_id), project_id)
-        await add_ticket_to_sprint(sprint, ticket)
+        await add_ticket_to_sprint(sprint, ticket, request.user.user_id)
         return Response(status=status.HTTP_200_OK)
 
     async def delete(self, request, team_id, project_id, sprint_id, ticket_id):
@@ -116,5 +116,5 @@ class SprintTicketView(AsyncAPIView):
         ticket = await get_ticket_or_404(ticket_id, project_id)
         if ticket.sprint_id != sprint.id: #type: ignore
             raise ValidationError('Ticket does not belong to this sprint.')
-        await remove_ticket_from_sprint(ticket)
+        await remove_ticket_from_sprint(ticket, sprint, request.user.user_id)
         return Response(status=status.HTTP_204_NO_CONTENT)

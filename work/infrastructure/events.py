@@ -132,3 +132,24 @@ async def publish_sprint_completed(sprint, team_id: str, actor_id: str) -> None:
         project_id=sprint.project_id,
     )
 
+async def publish_ticket_added_to_sprint(ticket, actor_id: str, sprint) -> None:
+    await publish_event(
+        "ticket.sprint_added",
+        project_id=ticket.project_id,
+        actor_id=actor_id,
+        ticket_id=ticket.id,
+        ticket_key=ticket.key,
+        sprint_id=sprint.id,
+        sprint_name=sprint.name,
+    )
+
+async def publish_ticket_removed_from_sprint(ticket, actor_id: str, sprint) -> None:
+    await publish_event(
+        "ticket.sprint_removed",
+        project_id=ticket.project_id,
+        actor_id=actor_id,
+        ticket_id=ticket.id,
+        ticket_key=ticket.key,
+        sprint_id=sprint.id,
+        sprint_name=sprint.name,
+    )
