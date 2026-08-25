@@ -48,7 +48,13 @@ async def create_project_with_lead(name: str, key: str, description: str, team: 
         project = await create_project(name, key, description, team, creator_id)
     except IntegrityError:
         raise ValidationError('A project with this key already exists.')
-    await create_project_membership(project, creator_id, ProjectMembership.Role.LEAD)
+    
+    try:
+        await create_project_membership(project, creator_id, ProjectMembership.Role.LEAD)
+    except Exception:  # noqa: BLE001
+        await delete_project(project)
+        raise ValidationError("Something went wrong, please try again.")
+    
     return project
 
 async def update_project(project: Project, data: dict) -> Project:

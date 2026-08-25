@@ -8,7 +8,7 @@ class Project(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     name = models.CharField(max_length=100)
-    key = models.CharField(max_length=10, unique=True)
+    key = models.CharField(max_length=10)
     description = models.TextField(blank=True)
     team = models.ForeignKey('teams.Team', on_delete=models.CASCADE, related_name='projects')
     created_by = models.UUIDField()
@@ -16,6 +16,7 @@ class Project(models.Model):
 
     class Meta:
         db_table= 'projects'
+        unique_together: ClassVar = [('team', 'key')]
 
     def __str__(self):
         return self.name
@@ -39,4 +40,4 @@ class ProjectMembership(models.Model):
         unique_together: ClassVar = [('user_id', 'project')]
 
     def __str__(self):
-        return f'{self.user_id} - {self.project.name} ({self.role})'
+        return f'{self.user_id} - {self.project_id} ({self.role})' # type: ignore

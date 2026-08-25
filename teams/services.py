@@ -26,7 +26,12 @@ async def list_my_teams(user_id: str):
 
 async def create_team_with_owner(name: str, description: str, owner_id: str):
     team = await create_team(name, description, owner_id)
-    await create_membership(team, owner_id, Role.OWNER)
+    try:
+        await create_membership(team, owner_id, Role.OWNER)
+    except Exception:  # noqa: BLE001
+        await team.adelete()
+        raise ValidationError("Something went wrong, please try again.")
+    
     return team    
 
 async def add_member(team: Team, requester_role: str, email: str, target_role: str) -> TeamMembership:

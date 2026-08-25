@@ -1,5 +1,6 @@
 from django.db import IntegrityError
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from tenacity import retry, retry_if_exception_type, stop_after_attempt
 
 from projects.models import Project, ProjectMembership
 from sprints.repository import get_active_sprint_by_project, get_sprint_tickets
@@ -64,6 +65,16 @@ async def get_ticket_or_404(ticket_id: str, project_id: str) -> Ticket:
 async def list_project_tickets(project_id: str) -> list[Ticket]:
     return await get_tickets_by_project(project_id)
 
+@retry(retry = retry_if_exception_type(IntegrityError), stop=stop_after_attempt(2), reraise=True)
+async def _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date) -> Ticket:
+    ticket_number = await get_next_ticket_number(str(project.id))
+    key = f'{project.key}-{ticket_number}'
+    return await create_ticket_repository(
+        title=title, description=description, type=type, priority=priority, status=status,
+        project=project, created_by=created_by, ticket_number=ticket_number, key=key,
+        assignee_id=assignee_id, parent_epic=parent_epic, due_date=due_date,
+    )
+
 async def create_ticket(project: Project, created_by: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
     title = data.get('title')
     type = data.get('type')
@@ -82,34 +93,19 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
     due_date = data.get('due_date')
 
     parent_epic = await _validate_epic_rules(ticket_type=type, project_id=str(project.id), requester_role=requester_role, assignee_id=assignee_id, parent_epic_id=parent_epic_id)
-    ticket_number = await get_next_ticket_number(str(project.id))
-    key = f'{project.key}-{ticket_number}'
+
     try:
-        ticket = await create_ticket_repository(title=title,
-                                        description=description,
-                                        type=type,
-                                        priority=priority,
-                                        status=status,
-                                        project=project,
-                                        created_by=created_by,
-                                        ticket_number=ticket_number,
-                                        key=key,
-                                        assignee_id= assignee_id,
-                                        parent_epic=parent_epic,
-                                        due_date=due_date)
+        ticket = await _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date)
     except IntegrityError:
         raise ValidationError('Something went wrong, please try again.')
     
-    try:
-        await publish_ticket_created(ticket, actor_id=created_by)
-
-        if assignee_id:
-            await publish_ticket_assigned(ticket, actor_id=created_by, recipient_id=assignee_id)
-    except Exception: #noqa redis failure
-        pass    
+    await publish_ticket_created(ticket, actor_id=created_by)
+    if assignee_id:
+        await publish_ticket_assigned(ticket, actor_id=created_by, recipient_id=assignee_id)
 
     return ticket
     
+
 async def update_ticket(ticket: Ticket, requester_id: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
     allowed_fields = ['title', 'description', 'type', 'priority', 'status', 'assignee_id', 'story_points', 'parent_epic', 'due_date']
     filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
@@ -117,7 +113,7 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
         raise PermissionDenied('You cannot edit this ticket') 
     if 'assignee_id' in filtered_data and filtered_data['assignee_id'] != requester_id and not can_assign_ticket(requester_role):
         raise PermissionDenied('Only Project Lead can assign tickets to others.')
-    if 'story_points' in filtered_data:
+    if 'story_points' in filtered_data and filtered_data['story_points'] is not None:
         validate_story_point(filtered_data['story_points'])
 
     old_snapshot= _snapshot_ticket(ticket)
@@ -145,10 +141,7 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
     return ticket
 
 async def delete_ticket(ticket: Ticket, requester_id: str) -> None:
-    try:
-        await publish_ticket_deleted(ticket, actor_id=requester_id)
-    except Exception: # noqa redis failure
-        pass
+    await publish_ticket_deleted(ticket, actor_id=requester_id)
     await delete_ticket_repository(ticket)
 
 async def get_board(project_id: str) -> dict:
