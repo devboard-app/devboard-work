@@ -178,6 +178,10 @@ def _snapshot_ticket(ticket: Ticket) -> dict:
         'title': ticket.title,
         'description': ticket.description,
         'parent_epic_id': str(ticket.parent_epic_id) if ticket.parent_epic_id else None, # type:ignore
+        'priority': ticket.priority,
+        'type': ticket.type,
+        'due_date': ticket.due_date,
+        'story_points': ticket.story_points
     }
 
 async def _publish_ticket_update_events(ticket: Ticket, requester_id: str, filtered_data: dict, old: dict) -> None:
@@ -190,6 +194,18 @@ async def _publish_ticket_update_events(ticket: Ticket, requester_id: str, filte
 
         if 'description' in filtered_data and old['description'] != filtered_data.get('description'):
             await publish_ticket_updated(ticket, actor_id=requester_id, field='description', from_value=old['description'], to_value=filtered_data['description'])
+
+        if 'priority' in filtered_data and old['priority'] != filtered_data.get('priority'):
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='priority', from_value=old['priority'], to_value=filtered_data['priority'])
+
+        if 'type' in filtered_data and old['type'] != filtered_data.get('type'):
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='type', from_value=old['type'], to_value=filtered_data['type'])
+
+        if 'due_date' in filtered_data and old['due_date'] != filtered_data.get('due_date'):
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='due_date', from_value=str(old['due_date']), to_value=str(filtered_data['due_date']))
+
+        if 'story_points' in filtered_data and old['story_points'] != filtered_data.get('story_points'):
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='story_points', from_value=str(old['story_points']), to_value=str(filtered_data['story_points']))
 
         if new_assignee_id and new_assignee_id != old['assignee_id']:
             await publish_ticket_assigned(ticket, actor_id=requester_id, recipient_id=new_assignee_id)
