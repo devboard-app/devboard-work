@@ -1,4 +1,5 @@
 import uuid
+from typing import ClassVar
 
 from django.db import models
 
@@ -22,5 +23,9 @@ class Sprint(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        constraints: ClassVar = [
+            models.UniqueConstraint(fields=['project'], condition=models.Q(status='active'), name='unique_active_sprint_per_project')
+        ]
     def __str__(self):
         return self.name
