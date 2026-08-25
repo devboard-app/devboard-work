@@ -41,7 +41,7 @@ async def send_member_notification(to: str, team_name: str, inviter_name: str) -
                 json=payload,
                 headers={'X-Service-Key': settings.INTERNAL_API_KEY}
             )
-    except httpx.TransportError:
+    except (httpx.TransportError, httpx.HTTPStatusError):
         raise ServiceUnavaiable()
 
     response.raise_for_status()
