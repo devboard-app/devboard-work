@@ -3,6 +3,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 
 from tickets.models import Ticket
 from tickets.services import can_edit_ticket
+from work.infrastructure.events import publish_label_applied, publish_label_removed
 
 from .models import Label
 from .repository import (
@@ -10,7 +11,6 @@ from .repository import (
     get_label_by_id,
     get_labels_by_project,
 )
-from work.infrastructure.events import publish_label_applied, publish_label_removed
 from .repository import create_label as create_label_repository
 from .repository import delete_label as delete_label_repository
 from .repository import get_ticket_labels as get_ticket_labels_repository

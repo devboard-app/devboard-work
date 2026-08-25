@@ -120,11 +120,7 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
     if 'story_points' in filtered_data:
         validate_story_point(filtered_data['story_points'])
 
-    old_assignee_id = str(ticket.assignee_id) if ticket.assignee_id else None
-    old_status = ticket.status
-    old_title = ticket.title
-    old_description = ticket.description
-    old_parent_epic_id = str(ticket.parent_epic_id) if ticket.parent_epic_id else None #type: ignore
+    old_snapshot= _snapshot_ticket(ticket)
 
     for key, value in filtered_data.items():
         setattr(ticket, key, value)
@@ -133,37 +129,7 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
     except IntegrityError:
         raise ValidationError('A ticket with this key already exists.')
 
-    new_assignee_id = filtered_data.get('assignee_id')
-    new_title = filtered_data.get('title')
-    new_description = filtered_data.get('description')
-    new_epic_id = filtered_data.get('parent_epic')
-    new_parent_epic = await get_ticket_by_id(new_epic_id, str(ticket.project_id)) if new_epic_id else None #type: ignore
-    try:
-        if 'title' in filtered_data and old_title != new_title:
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='title', from_value=old_title, to_value=new_title)
-
-        if 'description' in filtered_data and old_description != new_description:
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='description', from_value=old_description, to_value=new_description)
-        
-        if new_assignee_id and new_assignee_id != old_assignee_id:
-            await publish_ticket_assigned(ticket, actor_id=requester_id, recipient_id=new_assignee_id)
-
-        if 'assignee_id' in filtered_data and new_assignee_id is None and old_assignee_id:
-            await publish_ticket_unassigned(ticket, actor_id=requester_id, previous_assignee_id=old_assignee_id)
-        
-        if 'status' in filtered_data and filtered_data['status'] != old_status and ticket.assignee_id:
-            await publish_ticket_status_changed(ticket, actor_id=requester_id, recipient_id=str(ticket.assignee_id), from_status=old_status, to_status=ticket.status)
-
-        if new_parent_epic and str(new_parent_epic.id) != old_parent_epic_id:
-            await publish_ticket_epic_linked(ticket, actor_id=requester_id, epic_id=str(new_parent_epic.id), epic_key=new_parent_epic.key)
-
-        if old_parent_epic_id and new_parent_epic is None and 'parent_epic' in filtered_data:
-            old_parent_epic = await get_ticket_by_id(old_parent_epic_id, str(ticket.project_id))#type: ignore
-            if old_parent_epic:
-                await publish_ticket_epic_unlinked(ticket, actor_id=requester_id, epic_id=old_parent_epic_id, epic_key=old_parent_epic.key)
-
-    except Exception: # noqa redis failure
-        pass
+    await _publish_ticket_update_events(ticket, requester_id, filtered_data, old_snapshot)
     return ticket
 
 async def delete_ticket(ticket: Ticket, requester_id: str) -> None:
@@ -191,3 +157,45 @@ async def get_board(project_id: str) -> dict:
 
 async def get_backlog(project_id: str) -> list[Ticket]:
     return await get_tickets_by_project_and_no_sprint(project_id)
+
+
+def _snapshot_ticket(ticket: Ticket) -> dict:
+    return {
+        'assignee_id': str(ticket.assignee_id) if ticket.assignee_id else None,
+        'status': ticket.status,
+        'title': ticket.title,
+        'description': ticket.description,
+        'parent_epic_id': str(ticket.parent_epic_id) if ticket.parent_epic_id else None, # type:ignore
+    }
+
+async def _publish_ticket_update_events(ticket: Ticket, requester_id: str, filtered_data: dict, old: dict) -> None:
+    new_assignee_id = filtered_data.get('assignee_id')
+    new_epic_id = filtered_data.get('parent_epic')
+    new_parent_epic = await get_ticket_by_id(new_epic_id, str(ticket.project_id)) if new_epic_id else None #type: ignore
+
+    try:
+        if 'title' in filtered_data and old['title'] != filtered_data.get('title'):
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='title', from_value=old['title'], to_value=filtered_data['title'])
+
+        if 'description' in filtered_data and old['description'] != filtered_data.get('description'):
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='description', from_value=old['description'], to_value=filtered_data['description'])
+
+        if new_assignee_id and new_assignee_id != old['assignee_id']:
+            await publish_ticket_assigned(ticket, actor_id=requester_id, recipient_id=new_assignee_id)
+
+        if 'assignee_id' in filtered_data and new_assignee_id is None and old['assignee_id']:
+            await publish_ticket_unassigned(ticket, actor_id=requester_id, previous_assignee_id=old['assignee_id'])
+
+        if 'status' in filtered_data and filtered_data['status'] != old['status'] and ticket.assignee_id:
+            await publish_ticket_status_changed(ticket, actor_id=requester_id, recipient_id=str(ticket.assignee_id), from_status=old['status'], to_status=ticket.status)
+
+        if new_parent_epic and str(new_parent_epic.id) != old['parent_epic_id']:
+            await publish_ticket_epic_linked(ticket, actor_id=requester_id, epic_id=str(new_parent_epic.id), epic_key=new_parent_epic.key)
+
+        if old['parent_epic_id'] and new_parent_epic is None and 'parent_epic' in filtered_data:
+            old_parent_epic = await get_ticket_by_id(old['parent_epic_id'], str(ticket.project_id)) #type: ignore
+            if old_parent_epic:
+                await publish_ticket_epic_unlinked(ticket, actor_id=requester_id, epic_id=old['parent_epic_id'], epic_key=old_parent_epic.key)
+
+    except Exception: # noqa redis failure
+        pass
