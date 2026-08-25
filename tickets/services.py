@@ -99,13 +99,9 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
     except IntegrityError:
         raise ValidationError('Something went wrong, please try again.')
     
-    try:
-        await publish_ticket_created(ticket, actor_id=created_by)
-
-        if assignee_id:
-            await publish_ticket_assigned(ticket, actor_id=created_by, recipient_id=assignee_id)
-    except Exception: #noqa redis failure
-        pass    
+    await publish_ticket_created(ticket, actor_id=created_by)
+    if assignee_id:
+        await publish_ticket_assigned(ticket, actor_id=created_by, recipient_id=assignee_id)
 
     return ticket
     
@@ -145,10 +141,7 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
     return ticket
 
 async def delete_ticket(ticket: Ticket, requester_id: str) -> None:
-    try:
-        await publish_ticket_deleted(ticket, actor_id=requester_id)
-    except Exception: # noqa redis failure
-        pass
+    await publish_ticket_deleted(ticket, actor_id=requester_id)
     await delete_ticket_repository(ticket)
 
 async def get_board(project_id: str) -> dict:

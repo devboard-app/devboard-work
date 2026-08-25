@@ -1,11 +1,17 @@
+import logging
+
 from work.infrastructure.redis_client import redis_client
 
+logger = logging.getLogger(__name__)
 STREAM = "devboard:events"
 
 async def publish_event(event: str, **kwargs) -> None:
     data = {"event": event, **kwargs}
-    await redis_client.xadd(STREAM, {k: str(v) for k, v in data.items()})
-
+    try:
+        await redis_client.xadd(STREAM, {k: str(v) for k, v in data.items()})
+    except Exception:
+        logger.warning(f"Failed to publish event '{event}'", exc_info=True)
+    
 async def publish_ticket_assigned(ticket, actor_id: str, recipient_id: str) -> None:
     await publish_event(
         "ticket.assigned",

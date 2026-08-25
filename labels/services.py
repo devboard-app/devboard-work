@@ -56,19 +56,14 @@ async def apply_label_to_ticket(ticket: Ticket, label: Label, requester_id: str,
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket')
     await add_label_to_ticket(ticket, label)
-    try:
-        await publish_label_applied(ticket, label, actor_id=requester_id)
-    except Exception: # noqa redis failure
-        pass
+    await publish_label_applied(ticket, label, actor_id=requester_id)
+    
 
 async def remove_label_from_ticket(ticket: Ticket, label: Label, requester_id: str, requester_role: str) -> None:
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket')
     await remove_label_from_ticket_repository(ticket, label)
-    try:
-        await publish_label_removed(ticket, label, actor_id=requester_id)
-    except Exception: # noqa redis failure
-        pass
+    await publish_label_removed(ticket, label, actor_id=requester_id)
     
 async def get_ticket_labels(ticket: Ticket) -> list[Label]:
     return await get_ticket_labels_repository(ticket)
