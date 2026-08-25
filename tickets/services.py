@@ -122,6 +122,18 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
 
     old_snapshot= _snapshot_ticket(ticket)
 
+    if 'parent_epic' in filtered_data:
+        epic_id = filtered_data['parent_epic']
+        if epic_id:
+            parent_epic = await get_ticket_by_id(epic_id, str(ticket.project_id)) #type: ignore
+            if parent_epic is None:
+                raise ValidationError('Parent epic not found.')
+            if parent_epic.type != Ticket.Type.EPIC:
+                raise ValidationError('parent_epic must be of type Epic.')
+            filtered_data['parent_epic'] = parent_epic
+        else:
+            filtered_data['parent_epic'] = None
+
     for key, value in filtered_data.items():
         setattr(ticket, key, value)
     try:
@@ -170,8 +182,7 @@ def _snapshot_ticket(ticket: Ticket) -> dict:
 
 async def _publish_ticket_update_events(ticket: Ticket, requester_id: str, filtered_data: dict, old: dict) -> None:
     new_assignee_id = filtered_data.get('assignee_id')
-    new_epic_id = filtered_data.get('parent_epic')
-    new_parent_epic = await get_ticket_by_id(new_epic_id, str(ticket.project_id)) if new_epic_id else None #type: ignore
+    new_parent_epic = filtered_data.get('parent_epic') 
 
     try:
         if 'title' in filtered_data and old['title'] != filtered_data.get('title'):
