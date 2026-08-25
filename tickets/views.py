@@ -59,7 +59,7 @@ class TicketDetailView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
         ticket = await get_ticket_or_404(ticket_id, project_id)
-        await delete_ticket(ticket)
+        await delete_ticket(ticket, request.user.user_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class BoardView(AsyncAPIView):
