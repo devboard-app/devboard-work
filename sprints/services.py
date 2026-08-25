@@ -1,5 +1,6 @@
-from rest_framework.exceptions import NotFound, ValidationError
 from django.db import IntegrityError
+from rest_framework.exceptions import NotFound, ValidationError
+
 from projects.models import Project
 from tickets.models import Ticket
 from tickets.repository import update_ticket
