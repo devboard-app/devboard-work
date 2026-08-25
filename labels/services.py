@@ -3,6 +3,7 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 
 from tickets.models import Ticket
 from tickets.services import can_edit_ticket
+from work.infrastructure.events import publish_label_applied, publish_label_removed
 
 from .models import Label
 from .repository import (
@@ -35,6 +36,7 @@ async def create_label(project, data) -> Label:
         return await create_label_repository(name=name, color=color, project=project)
     except IntegrityError:
         raise ValidationError('A label with this name already exists in this project.')
+    
 
 async def update_label(label: Label, data: dict) -> Label:
     allowed_fields = ['name', 'color']
@@ -54,11 +56,19 @@ async def apply_label_to_ticket(ticket: Ticket, label: Label, requester_id: str,
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket')
     await add_label_to_ticket(ticket, label)
+    try:
+        await publish_label_applied(ticket, label, actor_id=requester_id)
+    except Exception: # noqa redis failure
+        pass
 
 async def remove_label_from_ticket(ticket: Ticket, label: Label, requester_id: str, requester_role: str) -> None:
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket')
     await remove_label_from_ticket_repository(ticket, label)
-
+    try:
+        await publish_label_removed(ticket, label, actor_id=requester_id)
+    except Exception: # noqa redis failure
+        pass
+    
 async def get_ticket_labels(ticket: Ticket) -> list[Label]:
     return await get_ticket_labels_repository(ticket)
