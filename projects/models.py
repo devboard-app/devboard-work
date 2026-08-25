@@ -40,4 +40,4 @@ class ProjectMembership(models.Model):
         unique_together: ClassVar = [('user_id', 'project')]
 
     def __str__(self):
-        return f'{self.user_id} - {self.project.name} ({self.role})'
+        return f'{self.user_id} - {self.project_id} ({self.role})' # type: ignore
