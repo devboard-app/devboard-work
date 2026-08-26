@@ -52,3 +52,6 @@ async def delete_ticket(ticket: Ticket) -> None:
 
 async def get_tickets_by_project_and_no_sprint(project_id: str) -> list[Ticket]:
     return [t async for t in Ticket.objects.filter(project=project_id, sprint__isnull=True).prefetch_related('labels')]
+
+async def get_ticket_by_key(project_id: str, key: str) -> Ticket | None:
+    return await Ticket.objects.filter(project_id=project_id, key=key).afirst()
