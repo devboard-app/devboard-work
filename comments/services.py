@@ -1,3 +1,5 @@
+import uuid
+
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
 from projects.models import ProjectMembership
@@ -9,11 +11,24 @@ from .repository import delete_comment as delete_comment_repository
 from .repository import get_comment_by_id, get_comments_by_ticket
 from .repository import update_comment as update_comment_repository
 
+MAX_ATTACHMENTS = 5
 
 def _validate_body(body) -> str:
     if not isinstance(body, str) or not body.strip():
         raise ValidationError('Comment body is required.')
     return body.strip()
+
+def _validate_attachment_ids(raw) -> list[uuid.UUID]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        raise ValidationError('attachment_ids must be a list.')
+    if len(raw) > MAX_ATTACHMENTS:
+        raise ValidationError(f'A comment can have at most {MAX_ATTACHMENTS} attachments.')
+    try:
+        return [uuid.UUID(str(i)) for i in raw]
+    except ValueError:
+        raise ValidationError('attachment_ids must be valid UUIDs.')
 
 async def list_ticket_comments(ticket_id: str) -> list[Comment]:
     return await get_comments_by_ticket(ticket_id)
@@ -26,7 +41,8 @@ async def get_comment_or_404(comment_id: str, ticket_id: str) -> Comment:
 
 async def create_comment(ticket: Ticket, requester_id: str, data: dict) -> Comment:
     body = _validate_body(data.get('body'))
-    return await create_comment_repository(ticket, requester_id, body)
+    attachment_ids = _validate_attachment_ids(data.get('attachment_ids'))
+    return await create_comment_repository(ticket, requester_id, body, attachment_ids)
 
 async def update_comment(comment: Comment, requester_id: str, data: dict) -> Comment:
     if str(comment.author_id) != str(requester_id):

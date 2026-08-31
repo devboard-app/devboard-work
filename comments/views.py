@@ -8,6 +8,7 @@ from teams.permissions import require_team_role
 from tickets.services import get_ticket_or_404
 from work.views import AsyncAPIView
 
+from .infrastructure import resolve_attachments
 from .serializers import CommentSerializer
 from .services import create_comment as create_comment_service
 from .services import delete_comment as delete_comment_service
@@ -25,7 +26,9 @@ class CommentListCreateView(AsyncAPIView):
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         await get_ticket_or_404(ticket_id, project_id)
         comments = await list_ticket_comments(ticket_id)
-        serializer = CommentSerializer(comments, many=True)
+        ids = list(dict.fromkeys(str(i) for c in comments for i in c.attachment_ids))
+        resolved = await resolve_attachments(ids)
+        serializer = CommentSerializer(comments, many=True, context ={'resolved_attachments': resolved})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     async def post(self, request, team_id, project_id, ticket_id):

@@ -33,6 +33,7 @@ JWT_SECRET = env('JWT_SECRET')
 CORE_SERVICE_URL = env('CORE_SERVICE_URL')
 EMAIL_SERVICE_URL = env('EMAIL_SERVICE_URL')
 REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0') # type: ignore
+ATTACHMENTS_SERVICE_URL = env('ATTACHMENTS_SERVICE_URL')
 
 # Application definition
 
