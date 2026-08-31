@@ -1,3 +1,5 @@
+import logging
+
 from django.db import IntegrityError
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from tenacity import retry, retry_if_exception_type, stop_after_attempt
@@ -26,6 +28,7 @@ from .repository import (
 )
 from .repository import update_ticket as update_ticket_repository
 
+logger = logging.getLogger(__name__)
 Role = ProjectMembership.Role
 
 def can_edit_ticket(ticket: Ticket, requester_id: str, requester_role: str) -> bool:
@@ -217,5 +220,5 @@ async def _publish_ticket_update_events(ticket: Ticket, requester_id: str, filte
             if old_parent_epic:
                 await publish_ticket_epic_unlinked(ticket, actor_id=requester_id, epic_id=old['parent_epic_id'], epic_key=old_parent_epic.key)
 
-    except Exception: # noqa redis failure
-        pass
+    except Exception:
+        logger.exception(f"Failed to publish update events for ticket {ticket.key}")
