@@ -2,7 +2,12 @@ import logging
 
 from django.db import IntegrityError
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
-from tenacity import retry, retry_if_exception_type, stop_after_attempt
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 
 from projects.models import Project, ProjectMembership
 from sprints.repository import get_active_sprint_by_project, get_sprint_tickets
@@ -68,7 +73,7 @@ async def get_ticket_or_404(ticket_id: str, project_id: str) -> Ticket:
 async def list_project_tickets(project_id: str) -> list[Ticket]:
     return await get_tickets_by_project(project_id)
 
-@retry(retry = retry_if_exception_type(IntegrityError), stop=stop_after_attempt(2), reraise=True)
+@retry(retry = retry_if_exception_type(IntegrityError), stop=stop_after_attempt(5), wait=wait_random_exponential(multiplier=0.05, max=0.5), reraise=True)
 async def _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date) -> Ticket:
     ticket_number = await get_next_ticket_number(str(project.id))
     key = f'{project.key}-{ticket_number}'
@@ -100,7 +105,9 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
     try:
         ticket = await _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date)
     except IntegrityError:
-        raise ValidationError('Something went wrong, please try again.')
+        logger.exception(f"Could not allocate a ticket number for project {project.key} after 5 attempts")
+        raise ValidationError("Could not allocate a ticket number, please retry.")
+        
     
     await publish_ticket_created(ticket, actor_id=created_by)
     if assignee_id:
@@ -147,7 +154,7 @@ async def delete_ticket(ticket: Ticket, requester_id: str) -> None:
     project_id, ticket_id, ticket_key = ticket.project_id, ticket.id, ticket.key #type: ignore
     await delete_ticket_repository(ticket)
     await publish_ticket_deleted(project_id, ticket_id, ticket_key, actor_id=requester_id)
-    
+
 async def get_board(project_id: str) -> dict:
     sprint = await get_active_sprint_by_project(project_id)
     if sprint is None:
