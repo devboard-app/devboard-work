@@ -195,10 +195,10 @@ async def _publish_ticket_update_events(ticket: Ticket, requester_id: str, filte
             await publish_ticket_updated(ticket, actor_id=requester_id, field='type', from_value=old['type'], to_value=filtered_data['type'])
 
         if 'due_date' in filtered_data and old['due_date'] != filtered_data.get('due_date'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='due_date', from_value=str(old['due_date']), to_value=str(filtered_data['due_date']))
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='due_date', from_value=old['due_date'], to_value=filtered_data['due_date'])
 
         if 'story_points' in filtered_data and old['story_points'] != filtered_data.get('story_points'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='story_points', from_value=str(old['story_points']), to_value=str(filtered_data['story_points']))
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='story_points', from_value=old['story_points'], to_value=filtered_data['story_points'])
 
         if new_assignee_id and new_assignee_id != old['assignee_id']:
             await publish_ticket_assigned(ticket, actor_id=requester_id, recipient_id=new_assignee_id)
