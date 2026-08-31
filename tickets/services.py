@@ -144,9 +144,10 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
     return ticket
 
 async def delete_ticket(ticket: Ticket, requester_id: str) -> None:
-    await publish_ticket_deleted(ticket, actor_id=requester_id)
+    project_id, ticket_id, ticket_key = ticket.project_id, ticket.id, ticket.key #type: ignore
     await delete_ticket_repository(ticket)
-
+    await publish_ticket_deleted(project_id, ticket_id, ticket_key, actor_id=requester_id)
+    
 async def get_board(project_id: str) -> dict:
     sprint = await get_active_sprint_by_project(project_id)
     if sprint is None:

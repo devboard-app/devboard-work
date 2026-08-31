@@ -65,13 +65,13 @@ async def publish_ticket_status_changed(ticket, actor_id: str, recipient_id: str
         to_status=to_status,
     )
 
-async def publish_ticket_deleted(ticket, actor_id: str) -> None:
+async def publish_ticket_deleted(project_id, ticket_id, ticket_key, actor_id: str) -> None:
     await publish_event(
         "ticket.deleted",
-        project_id=ticket.project_id,
+        project_id=project_id,
         actor_id=actor_id,
-        ticket_id=ticket.id,
-        ticket_key=ticket.key,
+        ticket_id=ticket_id,
+        ticket_key=ticket_key,
     )
 
 async def publish_ticket_epic_linked(ticket, actor_id: str, epic_id: str, epic_key: str) -> None:
