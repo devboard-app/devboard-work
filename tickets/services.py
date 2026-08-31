@@ -176,7 +176,7 @@ def _snapshot_ticket(ticket: Ticket) -> dict:
         'parent_epic_id': str(ticket.parent_epic_id) if ticket.parent_epic_id else None, # type:ignore
         'priority': ticket.priority,
         'type': ticket.type,
-        'due_date': ticket.due_date,
+        'due_date': ticket.due_date.isoformat() if ticket.due_date else None,
         'story_points': ticket.story_points
     }
 
