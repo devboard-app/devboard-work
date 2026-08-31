@@ -8,7 +8,7 @@ STREAM = "devboard:events"
 async def publish_event(event: str, **kwargs) -> None:
     data = {"event": event, **kwargs}
     try:
-        await redis_client.xadd(STREAM, {k: str(v) for k, v in data.items()})
+        await redis_client.xadd(STREAM, {k: str(v) for k, v in data.items() if v is not None})
     except Exception:
         logger.warning(f"Failed to publish event '{event}'", exc_info=True)
     
