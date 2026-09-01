@@ -189,3 +189,14 @@ async def publish_comment_deleted(project_id, comment_id, ticket_id, ticket_key,
         ticket_id=ticket_id,
         ticket_key=ticket_key,
     )
+
+async def publish_comment_mentioned(comment, ticket, actor_id: str, recipient_id: str) -> None:
+    await publish_event(
+        "comment.mentioned",
+        project_id=ticket.project_id,
+        actor_id=actor_id,
+        recipient_id=recipient_id,
+        comment_id=comment.id,
+        ticket_id=ticket.id,
+        ticket_key=ticket.key,
+    )
