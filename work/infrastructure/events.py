@@ -1,4 +1,5 @@
 import logging
+from uuid import UUID
 
 from work.infrastructure.redis_client import redis_client
 
@@ -160,11 +161,12 @@ async def publish_ticket_removed_from_sprint(ticket, actor_id: str, sprint) -> N
         sprint_name=sprint.name,
     )
 
-async def publish_comment_created(comment, ticket, actor_id: str) -> None:
+async def publish_comment_created(comment, ticket, actor_id: str, recipient_id: UUID | None) -> None:
     await publish_event(
         "comment.created",
         project_id=ticket.project_id,
         actor_id=actor_id,
+        recipient_id=recipient_id,
         comment_id=comment.id,
         ticket_id=ticket.id,
         ticket_key=ticket.key,
