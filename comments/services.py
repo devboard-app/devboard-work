@@ -76,7 +76,7 @@ async def create_comment(ticket: Ticket, requester_id: str, data: dict) -> Comme
     attachment_ids = _validate_attachment_ids(data.get('attachment_ids'))
     mentioned_user_ids = await _resolve_mentions(body, requester_id, ticket.project_id)  # type: ignore
     comment = await create_comment_repository(ticket, requester_id, body, attachment_ids, mentioned_user_ids)
-    #to trigger the assignee event it's not mentioned
+    # notify the assignee only if they were not mentioned
     notified = {uuid.UUID(requester_id), *mentioned_user_ids}
     assignee_id = ticket.assignee_id if ticket.assignee_id not in notified else None
     await publish_comment_created(comment, ticket, actor_id=requester_id, recipient_id=assignee_id)
