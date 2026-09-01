@@ -45,7 +45,7 @@ class CommentDetailView(AsyncAPIView):
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         await get_ticket_or_404(ticket_id, project_id)
         comment = await get_comment_or_404(comment_id, ticket_id)
-        updated = await update_comment_service(comment, request.user.user_id, request.data)
+        updated = await update_comment_service(comment, request.user.user_id, project_id, request.data)
         serializer = CommentSerializer(updated)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
