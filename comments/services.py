@@ -10,6 +10,8 @@ from .repository import create_comment as create_comment_repository
 from .repository import delete_comment as delete_comment_repository
 from .repository import get_comment_by_id, get_comments_by_ticket
 from .repository import update_comment as update_comment_repository
+from .infrastructure import resolve_usernames
+from .mentions import extract_mentions
 
 MAX_ATTACHMENTS = 5
 
@@ -30,6 +32,23 @@ def _validate_attachment_ids(raw) -> list[uuid.UUID]:
     except ValueError:
         raise ValidationError('attachment_ids must be valid UUIDs.')
 
+async def _resolve_mentions(body: str, author_id: str) -> list[uuid.UUID]:
+    usernames = extract_mentions(body)
+    if not usernames:
+        return []
+
+    resolved = await resolve_usernames(usernames)
+
+    mentioned = []
+    for username in usernames:
+        user_id = resolved.get(username)
+        if user_id is None:
+            continue
+        if str(user_id) == str(author_id):
+            continue
+        mentioned.append(uuid.UUID(str(user_id)))
+    return mentioned
+
 async def list_ticket_comments(ticket_id: str) -> list[Comment]:
     return await get_comments_by_ticket(ticket_id)
 
@@ -42,7 +61,8 @@ async def get_comment_or_404(comment_id: str, ticket_id: str) -> Comment:
 async def create_comment(ticket: Ticket, requester_id: str, data: dict) -> Comment:
     body = _validate_body(data.get('body'))
     attachment_ids = _validate_attachment_ids(data.get('attachment_ids'))
-    return await create_comment_repository(ticket, requester_id, body, attachment_ids)
+    mentioned_user_ids = await _resolve_mentions(body, requester_id)
+    return await create_comment_repository(ticket, requester_id, body, attachment_ids, mentioned_user_ids)
 
 async def update_comment(comment: Comment, requester_id: str, data: dict) -> Comment:
     if str(comment.author_id) != str(requester_id):
@@ -51,6 +71,7 @@ async def update_comment(comment: Comment, requester_id: str, data: dict) -> Com
     if body == comment.body:
         return comment
     comment.body = body
+    comment.mentioned_user_ids = await _resolve_mentions(body, requester_id)
     comment.is_edited = True
     return await update_comment_repository(comment)
 

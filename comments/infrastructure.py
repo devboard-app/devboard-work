@@ -23,3 +23,19 @@ async def resolve_attachments(attachment_ids: list[str]) -> dict[str, dict]:
         logger.warning('Could not resolve attachments', exc_info=True)
         return {}
     return {item['id']: item for item in response.json()}
+
+async def resolve_usernames(usernames: list[str]) -> dict[str, str]:
+    if not usernames:
+        return {}
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.post(
+                f'{settings.CORE_SERVICE_URL}/api/users/lookup/',
+                json={'usernames': usernames},
+                headers={'X-Service-Key': settings.INTERNAL_API_KEY},
+            )
+        response.raise_for_status()
+    except (httpx.TransportError, httpx.HTTPStatusError):
+        logger.warning('Could not resolve mentions', exc_info=True)
+        return {}
+    return {item['username']: item['user_id'] for item in response.json()}
