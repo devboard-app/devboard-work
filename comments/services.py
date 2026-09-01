@@ -5,6 +5,11 @@ from rest_framework.exceptions import NotFound, PermissionDenied, ValidationErro
 from projects.models import ProjectMembership
 from projects.repository import get_memberships_by_project
 from tickets.models import Ticket
+from work.infrastructure.events import (
+    publish_comment_created,
+    publish_comment_deleted,
+    publish_comment_updated,
+)
 
 from .infrastructure import resolve_usernames
 from .mentions import extract_mentions
@@ -69,20 +74,26 @@ async def create_comment(ticket: Ticket, requester_id: str, data: dict) -> Comme
     body = _validate_body(data.get('body'))
     attachment_ids = _validate_attachment_ids(data.get('attachment_ids'))
     mentioned_user_ids = await _resolve_mentions(body, requester_id, ticket.project_id)  # type: ignore
-    return await create_comment_repository(ticket, requester_id, body, attachment_ids, mentioned_user_ids)
+    comment = await create_comment_repository(ticket, requester_id, body, attachment_ids, mentioned_user_ids)
+    await publish_comment_created(comment, ticket, actor_id=requester_id)
+    return comment
 
-async def update_comment(comment: Comment, requester_id: str, project_id: str, data: dict) -> Comment:
+async def update_comment(comment: Comment, ticket: Ticket, requester_id: str, data: dict) -> Comment:
     if str(comment.author_id) != str(requester_id):
         raise PermissionDenied('You can only edit your own comments.')
     body = _validate_body(data.get('body'))
     if body == comment.body:
         return comment
     comment.body = body
-    comment.mentioned_user_ids = await _resolve_mentions(body, requester_id, project_id)
+    comment.mentioned_user_ids = await _resolve_mentions(body, requester_id, ticket.project_id) #type: ignore
     comment.is_edited = True
-    return await update_comment_repository(comment)
+    updated = await update_comment_repository(comment)
+    await publish_comment_updated(updated, ticket, actor_id=requester_id)
+    return updated
 
-async def delete_comment(comment: Comment, requester_id: str, requester_role: ProjectMembership.Role) -> None:
+async def delete_comment(comment: Comment, ticket: Ticket, requester_id: str, requester_role: ProjectMembership.Role) -> None:
     if str(comment.author_id) != str(requester_id) and requester_role != ProjectMembership.Role.LEAD:
         raise PermissionDenied('You can only delete your own comments.')
+    comment_id = comment.id
     await delete_comment_repository(comment)
+    await publish_comment_deleted(ticket.project_id, comment_id, ticket.id, ticket.key, actor_id=requester_id) #type: ignore

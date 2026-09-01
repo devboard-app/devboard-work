@@ -43,16 +43,16 @@ class CommentDetailView(AsyncAPIView):
     async def patch(self, request, team_id, project_id, ticket_id, comment_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
-        await get_ticket_or_404(ticket_id, project_id)
+        ticket = await get_ticket_or_404(ticket_id, project_id)
         comment = await get_comment_or_404(comment_id, ticket_id)
-        updated = await update_comment_service(comment, request.user.user_id, project_id, request.data)
+        updated = await update_comment_service(comment, ticket, request.user.user_id, request.data)
         serializer = CommentSerializer(updated)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     async def delete(self, request, team_id, project_id, ticket_id, comment_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         membership = await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
-        await get_ticket_or_404(ticket_id, project_id)
+        ticket = await get_ticket_or_404(ticket_id, project_id)
         comment = await get_comment_or_404(comment_id, ticket_id)
-        await delete_comment_service(comment, request.user.user_id, ProjectMembership.Role(membership.role))
+        await delete_comment_service(comment, ticket, request.user.user_id, ProjectMembership.Role(membership.role))
         return Response(status=status.HTTP_204_NO_CONTENT)

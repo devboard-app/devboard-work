@@ -159,3 +159,33 @@ async def publish_ticket_removed_from_sprint(ticket, actor_id: str, sprint) -> N
         sprint_id=sprint.id,
         sprint_name=sprint.name,
     )
+
+async def publish_comment_created(comment, ticket, actor_id: str) -> None:
+    await publish_event(
+        "comment.created",
+        project_id=ticket.project_id,
+        actor_id=actor_id,
+        comment_id=comment.id,
+        ticket_id=ticket.id,
+        ticket_key=ticket.key,
+    )
+
+async def publish_comment_updated(comment, ticket, actor_id: str) -> None:
+    await publish_event(
+        "comment.updated",
+        project_id=ticket.project_id,
+        actor_id=actor_id,
+        comment_id=comment.id,
+        ticket_id=ticket.id,
+        ticket_key=ticket.key,
+    )
+
+async def publish_comment_deleted(project_id, comment_id, ticket_id, ticket_key, actor_id: str) -> None:
+    await publish_event(
+        "comment.deleted",
+        project_id=project_id,
+        actor_id=actor_id,
+        comment_id=comment_id,
+        ticket_id=ticket_id,
+        ticket_key=ticket_key,
+    )
