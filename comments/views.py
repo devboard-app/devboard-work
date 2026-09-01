@@ -36,7 +36,8 @@ class CommentListCreateView(AsyncAPIView):
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         ticket = await get_ticket_or_404(ticket_id, project_id)
         comment = await create_comment_service(ticket, request.user.user_id, request.data)
-        serializer = CommentSerializer(comment)
+        resolved = await resolve_attachments([str(i) for i in comment.attachment_ids])
+        serializer = CommentSerializer(comment, context={'resolved_attachments': resolved})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 class CommentDetailView(AsyncAPIView):
@@ -46,7 +47,8 @@ class CommentDetailView(AsyncAPIView):
         ticket = await get_ticket_or_404(ticket_id, project_id)
         comment = await get_comment_or_404(comment_id, ticket_id)
         updated = await update_comment_service(comment, ticket, request.user.user_id, request.data)
-        serializer = CommentSerializer(updated)
+        resolved = await resolve_attachments([str(i) for i in updated.attachment_ids])
+        serializer = CommentSerializer(updated, context={'resolved_attachments': resolved})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     async def delete(self, request, team_id, project_id, ticket_id, comment_id):
