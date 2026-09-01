@@ -14,7 +14,7 @@ class CommentSerializer(serializers.ModelSerializer):
             'mentioned_user_ids', 'is_edited', 'created_at', 'updated_at' 
         ]
         read_only_fields: ClassVar =[
-            'id', 'ticket', 'author_id', 'is_edited', 'created_at', 'updated_at',
+            'id', 'ticket', 'author_id', 'mentioned_user_ids', 'is_edited', 'created_at', 'updated_at',
         ]
 
     def get_attachments(self, obj) -> list[dict]:
