@@ -8,6 +8,7 @@ from tickets.models import Ticket
 from work.infrastructure.events import (
     publish_comment_created,
     publish_comment_deleted,
+    publish_comment_mentioned,
     publish_comment_updated,
 )
 
@@ -75,7 +76,12 @@ async def create_comment(ticket: Ticket, requester_id: str, data: dict) -> Comme
     attachment_ids = _validate_attachment_ids(data.get('attachment_ids'))
     mentioned_user_ids = await _resolve_mentions(body, requester_id, ticket.project_id)  # type: ignore
     comment = await create_comment_repository(ticket, requester_id, body, attachment_ids, mentioned_user_ids)
-    await publish_comment_created(comment, ticket, actor_id=requester_id)
+    # notify the assignee only if they were not mentioned
+    notified = {uuid.UUID(requester_id), *mentioned_user_ids}
+    assignee_id = ticket.assignee_id if ticket.assignee_id not in notified else None
+    await publish_comment_created(comment, ticket, actor_id=requester_id, recipient_id=assignee_id)
+    for recipient_id in comment.mentioned_user_ids:
+        await publish_comment_mentioned(comment, ticket, actor_id=requester_id, recipient_id=str(recipient_id))
     return comment
 
 async def update_comment(comment: Comment, ticket: Ticket, requester_id: str, data: dict) -> Comment:
@@ -84,11 +90,18 @@ async def update_comment(comment: Comment, ticket: Ticket, requester_id: str, da
     body = _validate_body(data.get('body'))
     if body == comment.body:
         return comment
+    
+    previously_mentioned = {str(i) for i in comment.mentioned_user_ids}
+
     comment.body = body
     comment.mentioned_user_ids = await _resolve_mentions(body, requester_id, ticket.project_id) #type: ignore
     comment.is_edited = True
     updated = await update_comment_repository(comment)
+
     await publish_comment_updated(updated, ticket, actor_id=requester_id)
+    for recipient_id in updated.mentioned_user_ids:
+        if str(recipient_id) not in previously_mentioned:
+            await publish_comment_mentioned(updated, ticket, actor_id=requester_id, recipient_id=str(recipient_id))
     return updated
 
 async def delete_comment(comment: Comment, ticket: Ticket, requester_id: str, requester_role: ProjectMembership.Role) -> None:
