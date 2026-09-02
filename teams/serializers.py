@@ -18,3 +18,19 @@ class TeamMembershipSerializer(serializers.ModelSerializer):
         model = TeamMembership
         fields: ClassVar = ['id', 'team', 'user_id', 'role', 'joined_at']
         read_only_fields: ClassVar = ['id', 'team', 'user_id', 'joined_at']
+
+class TeamInputSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    description = serializers.CharField(allow_blank=True, required=False, default='')
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError('No fields to update.')
+        return attrs
+
+class TeamMemberInputSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    role = serializers.ChoiceField(choices=TeamMembership.Role.choices)
+
+class TeamMemberRoleSerializer(serializers.Serializer):
+    role = serializers.ChoiceField(choices=TeamMembership.Role.choices)

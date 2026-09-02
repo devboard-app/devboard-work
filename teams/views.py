@@ -1,10 +1,10 @@
 import logging
 
 import httpx
-from asgiref.sync import sync_to_async
 from rest_framework import status
 from rest_framework.response import Response
 
+from work.serializers import validated
 from work.views import AsyncAPIView
 
 from .infrastructure import send_member_notification
@@ -13,7 +13,13 @@ from .permissions import require_team_role
 from .repository import (
     get_membership_by_team,
 )
-from .serializers import TeamMembershipSerializer, TeamSerializer
+from .serializers import (
+    TeamInputSerializer,
+    TeamMemberInputSerializer,
+    TeamMemberRoleSerializer,
+    TeamMembershipSerializer,
+    TeamSerializer,
+)
 from .services import (
     add_member,
     change_member_role,
@@ -22,6 +28,7 @@ from .services import (
     leave_team,
     list_my_teams,
     remove_member,
+    update_team,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,14 +43,9 @@ class TeamListCreateView(AsyncAPIView):
 
     async def post(self, request):
 
-        name = request.data.get('name')
-        description = request.data.get('description', '')
-        if not name:
-            return Response({'detail': 'Name is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        data = validated(TeamInputSerializer, request.data)
         owner_id = request.user.user_id
-
-        team = await create_team_with_owner(name, description, owner_id)
-
+        team = await create_team_with_owner(data['name'], data['description'], owner_id)
         serializer = TeamSerializer(team)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -60,11 +62,10 @@ class TeamDetailView(AsyncAPIView):
 
         team = await get_team_or_404(str(pk))
         await require_team_role(request.user.user_id, str(pk), Role.OWNER, Role.ADMIN)
-        serializer = TeamSerializer(team, data=request.data, partial=True)
-        if await sync_to_async(serializer.is_valid)():
-            await sync_to_async(serializer.save)()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        data = validated(TeamInputSerializer, request.data, partial=True)
+        updated = await update_team(team, data)
+        serializer = TeamSerializer(updated)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     async def delete(self, request, pk):
 
@@ -87,13 +88,10 @@ class TeamMemberListAddView(AsyncAPIView):
 
         team = await get_team_or_404(str(pk))
         requester_membership = await require_team_role(request.user.user_id, str(pk), Role.OWNER, Role.ADMIN)
-        target_role = request.data.get('role')
-        target_email = request.data.get('email')
-        if not target_role or not target_email:
-            return Response({'detail':'Email and role are required.'}, status=status.HTTP_400_BAD_REQUEST)
-        membership = await add_member(team, requester_membership.role, target_email, target_role) 
+        data = validated(TeamMemberInputSerializer, request.data)
+        membership = await add_member(team, requester_membership.role, data['email'], data['role']) 
         try:
-            await send_member_notification(target_email, team.name, request.user.email)
+            await send_member_notification(data['email'], team.name, request.user.email)
         except (httpx.TransportError, httpx.HTTPStatusError) as e: 
             logger.error(f'Failed to send invitation email: {e}')
         serializer = TeamMembershipSerializer(membership)
@@ -111,11 +109,8 @@ class TeamMemberDetailView(AsyncAPIView):
         team = await get_team_or_404(str(pk))
         requester_membership = await require_team_role(request.user.user_id, str(pk), Role.OWNER, Role.ADMIN)
         requester_role = requester_membership.role
-        target_role = request.data.get('role')
-        if not target_role:
-            return Response({'detail':'Role is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        target_membership = await change_member_role(str(team.id), user_id, requester_role, target_role)
+        data = validated(TeamMemberRoleSerializer, request.data)
+        target_membership = await change_member_role(str(team.id), user_id, requester_role, data['role'])
         serializer = TeamMembershipSerializer(target_membership)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
