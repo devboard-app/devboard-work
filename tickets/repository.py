@@ -1,6 +1,7 @@
 from django.db.models import Max
 
 from projects.models import Project
+from work.pagination import page
 
 from .models import Ticket
 
@@ -9,9 +10,7 @@ async def get_ticket_by_id(ticket_id: str, project_id: str) -> Ticket | None:
     return await Ticket.objects.filter(id=ticket_id, project_id=project_id).prefetch_related('labels').afirst()
 
 async def get_tickets_by_project(project_id: str, limit: int, offset: int) -> tuple[list[Ticket], int]:
-    qs = Ticket.objects.filter(project=project_id).prefetch_related('labels')
-    total = await qs.acount()
-    return [m async for m in qs[offset:offset + limit]], total
+    return await page(Ticket.objects.filter(project=project_id).prefetch_related('labels'), limit, offset)
 
 async def get_next_ticket_number(project_id: str) -> int:
     result = await Ticket.objects.filter(project=project_id).aaggregate(max_number=Max('ticket_number'))
@@ -55,9 +54,7 @@ async def delete_ticket(ticket: Ticket) -> None:
     await ticket.adelete()
 
 async def get_tickets_by_project_and_no_sprint(project_id: str, limit: int, offset: int) -> tuple[list[Ticket], int]:
-    qs = Ticket.objects.filter(project=project_id, sprint__isnull=True).prefetch_related('labels')
-    total = await qs.acount()
-    return [t async for t in qs[offset:offset + limit]], total
+    return await page(Ticket.objects.filter(project=project_id, sprint__isnull=True).prefetch_related('labels'), limit, offset)
 
 async def get_ticket_by_key(project_id: str, key: str) -> Ticket | None:
     return await Ticket.objects.filter(project_id=project_id, key=key).afirst()

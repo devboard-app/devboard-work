@@ -4,6 +4,7 @@ import httpx
 from rest_framework import status
 from rest_framework.response import Response
 
+from work.pagination import get_limit_offset, paginated
 from work.serializers import validated
 from work.views import AsyncAPIView
 
@@ -36,10 +37,10 @@ Role = TeamMembership.Role
 class TeamListCreateView(AsyncAPIView):
 
     async def get(self, request):
-
-        teams = await list_my_teams(request.user.user_id)
-        serializer = TeamSerializer(teams, many = True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        limit, offset = get_limit_offset(request)
+        teams, total = await list_my_teams(request.user.user_id, limit, offset)
+        serializer = TeamSerializer(teams, many=True)
+        return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
 
     async def post(self, request):
 
@@ -80,9 +81,10 @@ class TeamMemberListAddView(AsyncAPIView):
 
         await get_team_or_404(str(pk))
         await require_team_role(request.user.user_id, str(pk), Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
-        memberships = await get_membership_by_team(str(pk))
+        limit, offset = get_limit_offset(request)
+        memberships, total = await get_membership_by_team(str(pk), limit, offset)
         serializer = TeamMembershipSerializer(memberships, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
 
     async def post(self, request, pk):
 

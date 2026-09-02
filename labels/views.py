@@ -6,6 +6,7 @@ from projects.models import ProjectMembership
 from projects.services import get_project_or_404
 from teams.models import TeamMembership
 from tickets.services import get_ticket_or_404
+from work.pagination import get_limit_offset, paginated
 from work.serializers import validated
 from work.views import AsyncAPIView
 
@@ -35,9 +36,10 @@ class LabelListCreateView(AsyncAPIView):
     async def get(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
-        labels = await list_project_labels(project_id)
+        limit, offset = get_limit_offset(request)
+        labels, total = await list_project_labels(project_id, limit, offset)
         serializer = LabelListSerializer(labels, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
 
     async def post(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
@@ -78,9 +80,10 @@ class TicketLabelView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         ticket = await get_ticket_or_404(ticket_id, project_id)
-        labels = await get_ticket_labels(ticket)
+        limit, offset = get_limit_offset(request)
+        labels, total = await get_ticket_labels(ticket, limit, offset)
         serializer = LabelListSerializer(labels, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
 
     async def post(self, request, team_id, project_id, ticket_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)

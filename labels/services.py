@@ -24,8 +24,8 @@ async def get_label_or_404(label_id: str, project_id: str) -> Label:
         raise NotFound('Label not found')
     return label
 
-async def list_project_labels(project_id: str) -> list[Label]:
-    return await get_labels_by_project(project_id)
+async def list_project_labels(project_id: str, limit: int, offset: int) -> tuple[list[Label], int]:
+    return await get_labels_by_project(project_id, limit, offset)
 
 async def create_label(project, data) -> Label:
     try:
@@ -58,5 +58,5 @@ async def remove_label_from_ticket(ticket: Ticket, label: Label, requester_id: s
     await remove_label_from_ticket_repository(ticket, label)
     await publish_label_removed(ticket, label, actor_id=requester_id)
     
-async def get_ticket_labels(ticket: Ticket) -> list[Label]:
-    return await get_ticket_labels_repository(ticket)
+async def get_ticket_labels(ticket: Ticket, limit: int, offset: int) -> tuple[list[Label], int]:
+    return await get_ticket_labels_repository(ticket, limit, offset)

@@ -1,4 +1,5 @@
 from teams.models import Team
+from work.pagination import page
 
 from .models import Project, ProjectMembership
 
@@ -6,8 +7,8 @@ from .models import Project, ProjectMembership
 async def get_project_by_id(project_id: str, team_id: str) -> Project | None:
     return await Project.objects.filter(id=project_id, team_id=team_id).afirst()
 
-async def get_projects_by_team(team_id: str) -> list[Project]:
-    return [m async for m in  Project.objects.filter(team=team_id).select_related('team')]
+async def get_projects_by_team(team_id: str, limit: int, offset: int) -> tuple[list[Project], int]:
+    return await page(Project.objects.filter(team=team_id).select_related('team'), limit, offset)
 
 
 async def create_project(name: str, key: str, description: str, team: Team, created_by: str) -> Project:
@@ -24,6 +25,9 @@ async def get_project_membership(user_id: str, project_id: str) -> ProjectMember
 
 async def get_memberships_by_project(project_id: str) -> list[ProjectMembership]:
     return [m async for m in ProjectMembership.objects.filter(project=project_id)]
+
+async def get_memberships_by_project_page(project_id: str, limit: int, offset: int) -> tuple[list[ProjectMembership],int]:
+    return await page(ProjectMembership.objects.filter(project=project_id), limit, offset)
 
 async def delete_project_membership(membership: ProjectMembership) -> None:
     await membership.adelete()

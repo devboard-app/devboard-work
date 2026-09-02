@@ -2,6 +2,7 @@ from datetime import date
 
 from projects.models import Project
 from tickets.models import Ticket
+from work.pagination import page
 
 from .models import Sprint
 
@@ -9,8 +10,8 @@ from .models import Sprint
 async def get_sprint_by_id(sprint_id: str, project_id: str) -> Sprint | None:
     return await Sprint.objects.filter(id=sprint_id, project_id=project_id).afirst()
 
-async def get_sprints_by_project(project_id: str) -> list[Sprint]:
-    return [m async for m in Sprint.objects.filter(project=project_id)]
+async def get_sprints_by_project(project_id: str, limit: int, offset: int) -> tuple[list[Sprint], int]:
+    return await page(Sprint.objects.filter(project=project_id), limit, offset)
 
 async def get_active_sprint_by_project(project_id: str) -> Sprint | None:
     return await Sprint.objects.filter(project=project_id, status=Sprint.Status.ACTIVE).afirst()
@@ -37,9 +38,7 @@ async def sprint_has_tickets(sprint: Sprint) -> bool:
     return await Ticket.objects.filter(sprint=sprint).aexists()
 
 async def get_sprint_tickets_page(sprint: Sprint, limit: int, offset: int) -> tuple[list[Ticket], int]:
-    qs = Ticket.objects.filter(sprint=sprint).prefetch_related('labels')
-    total = await qs.acount()
-    return [t async for t in qs[offset:offset + limit]], total
+    return await page(Ticket.objects.filter(sprint=sprint).prefetch_related('labels'), limit, offset)
 
 async def move_unfinished_tickets_to_backlog(sprint: Sprint) -> None:
     await Ticket.objects.filter(sprint=sprint).exclude(status=Ticket.Status.DONE).aupdate(sprint=None, status=Ticket.Status.BACKLOG)

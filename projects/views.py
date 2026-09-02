@@ -5,12 +5,12 @@ from rest_framework.response import Response
 from teams.models import TeamMembership
 from teams.permissions import require_team_role
 from teams.services import get_team_or_404
+from work.pagination import get_limit_offset, paginated
 from work.serializers import validated
 from work.views import AsyncAPIView
 
 from .models import ProjectMembership
 from .permissions import require_project_role
-from .repository import get_projects_by_team
 from .serializers import (
     ProjectInputSerializer,
     ProjectMemberInputSerializer,
@@ -25,6 +25,7 @@ from .services import (
     get_project_member_or_404,
     get_project_or_404,
     list_project_members,
+    list_team_projects,
     remove_project_member,
     update_project,
     update_project_member,
@@ -64,9 +65,10 @@ class ProjectListCreateView(AsyncAPIView):
 
     async def get(self, request, team_id):
         await require_team_role(request.user.user_id, team_id, Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
-        projects = await get_projects_by_team(team_id)
-        serializer = ProjectSerializer(projects, many = True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        limit, offset = get_limit_offset(request)
+        projects, total = await list_team_projects(team_id, limit, offset)
+        serializer = ProjectSerializer(projects, many=True)
+        return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
 
     async def post(self, request, team_id):
         created_by = request.user.user_id
@@ -83,9 +85,10 @@ class ProjectMemberView(AsyncAPIView):
         user_id = request.user.user_id
         await require_team_role(user_id, team_id, Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
         await get_project_or_404(project_id, team_id)
-        memberships = await list_project_members(project_id)
+        limit, offset = get_limit_offset(request)
+        memberships, total = await list_project_members(project_id, limit, offset)
         serializer = ProjectMembershipSerializer(memberships, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
 
     async def post(self, request, team_id, project_id):
         user_id = request.user.user_id
