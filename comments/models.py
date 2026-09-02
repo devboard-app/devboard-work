@@ -4,6 +4,8 @@ from typing import ClassVar
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
+MAX_ATTACHMENTS = 5
+
 
 class Comment(models.Model):
 

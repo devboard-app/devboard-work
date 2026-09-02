@@ -7,10 +7,16 @@ from projects.services import get_project_or_404
 from teams.models import TeamMembership
 from tickets.serializers import TicketSerializer
 from tickets.services import get_ticket_or_404
+from work.serializers import validated
 from work.views import AsyncAPIView
 
 from .permissions import require_project_role, require_team_role
-from .serializers import SprintListSerializer, SprintSerializer
+from .serializers import (
+    SprintInputSerializer,
+    SprintListSerializer,
+    SprintSerializer,
+    SprintTicketInputSerializer,
+)
 from .services import (
     add_ticket_to_sprint,
     complete_sprint,
@@ -40,7 +46,8 @@ class SprintListCreateView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
         project = await get_project_or_404(project_id, team_id)
-        sprint = await create_sprint(project, request.user.user_id, request.data)
+        data = validated(SprintInputSerializer, request.data)
+        sprint = await create_sprint(project, request.user.user_id, data)
         serializer = SprintSerializer(sprint)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
@@ -57,7 +64,8 @@ class SprintDetailView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
         sprint = await get_sprint_or_404(sprint_id, project_id)
-        updated_sprint = await update_sprint(sprint, request.data)
+        data = validated(SprintInputSerializer, request.data, partial=True)
+        updated_sprint = await update_sprint(sprint, data)
         serializer = SprintSerializer(updated_sprint)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -102,10 +110,8 @@ class SprintTicketView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
         sprint = await get_sprint_or_404(sprint_id, project_id)
-        ticket_id = request.data.get('ticket_id')
-        if ticket_id is None:
-            raise ValidationError('ticket_id is required.')
-        ticket = await get_ticket_or_404(str(ticket_id), project_id)
+        data = validated(SprintTicketInputSerializer, request.data)
+        ticket = await get_ticket_or_404(str(data['ticket_id']), project_id)
         await add_ticket_to_sprint(sprint, ticket, request.user.user_id)
         return Response(status=status.HTTP_200_OK)
 

@@ -6,10 +6,11 @@ from projects.permissions import require_project_role
 from teams.models import TeamMembership
 from teams.permissions import require_team_role
 from tickets.services import get_ticket_or_404
+from work.serializers import validated
 from work.views import AsyncAPIView
 
 from .infrastructure import resolve_attachments
-from .serializers import CommentSerializer
+from .serializers import CommentInputSerializer, CommentSerializer
 from .services import create_comment as create_comment_service
 from .services import delete_comment as delete_comment_service
 from .services import get_comment_or_404, list_ticket_comments
@@ -35,7 +36,8 @@ class CommentListCreateView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         ticket = await get_ticket_or_404(ticket_id, project_id)
-        comment = await create_comment_service(ticket, request.user.user_id, request.data)
+        data = validated(CommentInputSerializer, request.data)
+        comment = await create_comment_service(ticket, request.user.user_id, data)
         resolved = await resolve_attachments([str(i) for i in comment.attachment_ids])
         serializer = CommentSerializer(comment, context={'resolved_attachments': resolved})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -46,7 +48,8 @@ class CommentDetailView(AsyncAPIView):
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         ticket = await get_ticket_or_404(ticket_id, project_id)
         comment = await get_comment_or_404(comment_id, ticket_id)
-        updated = await update_comment_service(comment, ticket, request.user.user_id, request.data)
+        data = validated(CommentInputSerializer, request.data)
+        updated = await update_comment_service(comment, ticket, request.user.user_id, data)
         resolved = await resolve_attachments([str(i) for i in updated.attachment_ids])
         serializer = CommentSerializer(updated, context={'resolved_attachments': resolved})
         return Response(serializer.data, status=status.HTTP_200_OK)

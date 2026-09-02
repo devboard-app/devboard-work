@@ -1,4 +1,3 @@
-import re
 
 from django.db import IntegrityError
 from rest_framework.exceptions import NotFound, ValidationError
@@ -23,10 +22,6 @@ from .repository import (
 )
 
 
-def validate_key(key: str) -> None:
-    if not re.match(r'^[A-Z0-9]{2,10}$', key):
-        raise ValidationError('Key must be 2-10 uppercase alphanumeric characters')
-
 async def get_project_or_404(project_id: str, team_id: str) -> Project:
     project = await get_project_by_id(project_id, team_id)
     if project is None:
@@ -42,10 +37,9 @@ async def get_project_member_or_404(user_id: str, project_id: str) -> ProjectMem
 async def list_team_projects(team_id: str) -> list[Project]:
     return await get_projects_by_team(team_id)
 
-async def create_project_with_lead(name: str, key: str, description: str, team: Team, creator_id: str) -> Project:
-    validate_key(key)
+async def create_project_with_lead(data: dict, team: Team, creator_id: str) -> Project:
     try:
-        project = await create_project(name, key, description, team, creator_id)
+        project = await create_project(data['name'], data['key'], data['description'], team, creator_id)
     except IntegrityError:
         raise ValidationError('A project with this key already exists.')
     
@@ -58,11 +52,7 @@ async def create_project_with_lead(name: str, key: str, description: str, team: 
     return project
 
 async def update_project(project: Project, data: dict) -> Project:
-    allowed_fields = ['name', 'key', 'description']
-    filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
-    if 'key' in filtered_data:
-        validate_key(filtered_data['key'])
-    for key, value in filtered_data.items():
+    for key, value in data.items():
         setattr(project, key, value)
     try:
         await project.asave()

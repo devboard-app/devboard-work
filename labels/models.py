@@ -3,6 +3,8 @@ from typing import ClassVar
 
 from django.db import models
 
+DEFAULT_COLOR = '#6B7280'
+
 
 class Label(models.Model):
 

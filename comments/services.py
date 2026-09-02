@@ -1,6 +1,6 @@
 import uuid
 
-from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied
 
 from projects.models import ProjectMembership
 from projects.repository import get_memberships_by_project
@@ -20,24 +20,6 @@ from .repository import delete_comment as delete_comment_repository
 from .repository import get_comment_by_id, get_comments_by_ticket
 from .repository import update_comment as update_comment_repository
 
-MAX_ATTACHMENTS = 5
-
-def _validate_body(body) -> str:
-    if not isinstance(body, str) or not body.strip():
-        raise ValidationError('Comment body is required.')
-    return body.strip()
-
-def _validate_attachment_ids(raw) -> list[uuid.UUID]:
-    if raw is None:
-        return []
-    if not isinstance(raw, list):
-        raise ValidationError('attachment_ids must be a list.')
-    if len(raw) > MAX_ATTACHMENTS:
-        raise ValidationError(f'A comment can have at most {MAX_ATTACHMENTS} attachments.')
-    try:
-        return [uuid.UUID(str(i)) for i in raw]
-    except ValueError:
-        raise ValidationError('attachment_ids must be valid UUIDs.')
 
 async def _resolve_mentions(body: str, author_id: str, project_id: str) -> list[uuid.UUID]:
     usernames = extract_mentions(body)
@@ -72,8 +54,8 @@ async def get_comment_or_404(comment_id: str, ticket_id: str) -> Comment:
     return comment
 
 async def create_comment(ticket: Ticket, requester_id: str, data: dict) -> Comment:
-    body = _validate_body(data.get('body'))
-    attachment_ids = _validate_attachment_ids(data.get('attachment_ids'))
+    body = data['body']
+    attachment_ids = data['attachment_ids']
     mentioned_user_ids = await _resolve_mentions(body, requester_id, ticket.project_id)  # type: ignore
     comment = await create_comment_repository(ticket, requester_id, body, attachment_ids, mentioned_user_ids)
     # notify the assignee only if they were not mentioned
@@ -87,7 +69,7 @@ async def create_comment(ticket: Ticket, requester_id: str, data: dict) -> Comme
 async def update_comment(comment: Comment, ticket: Ticket, requester_id: str, data: dict) -> Comment:
     if str(comment.author_id) != str(requester_id):
         raise PermissionDenied('You can only edit your own comments.')
-    body = _validate_body(data.get('body'))
+    body = data['body']
     if body == comment.body:
         return comment
     

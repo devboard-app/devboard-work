@@ -18,3 +18,20 @@ class ProjectMembershipSerializer(serializers.ModelSerializer):
         model = ProjectMembership
         fields: ClassVar = ['id', 'project', 'user_id', 'role', 'joined_at']
         read_only_fields: ClassVar = ['id', 'project', 'user_id', 'joined_at']
+
+class ProjectInputSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=100)
+    key = serializers.RegexField( r'^[A-Z0-9]{2,10}$', error_messages={'invalid': 'Key must be 2-10 uppercase alphanumeric characters'})
+    description = serializers.CharField(allow_blank=True, required=False, default='')
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError('No fields to update.')
+        return attrs
+
+class ProjectMemberInputSerializer(serializers.Serializer):
+    user_id = serializers.UUIDField()
+    role = serializers.ChoiceField(choices=ProjectMembership.Role.choices)
+
+class ProjectMemberRoleSerializer(serializers.Serializer):
+    role = serializers.ChoiceField(choices=ProjectMembership.Role.choices)

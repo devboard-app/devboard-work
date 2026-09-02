@@ -67,6 +67,12 @@ async def change_member_role(team_id: str, user_id: str, requester_role: str, ta
     await target_membership.asave()
     return target_membership
 
+async def update_team(team: Team, data: dict) -> Team:
+    for key, value in data.items():
+        setattr(team, key, value)
+    await team.asave()
+    return team
+
 async def leave_team(team_id: str, user_id: str) -> None:
     membership = await get_membership_by_user_and_team(user_id, team_id)
     if membership is None:

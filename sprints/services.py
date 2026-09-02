@@ -35,20 +35,12 @@ async def list_project_sprints(project_id: str) -> list[Sprint]:
 
 
 async def create_sprint(project: Project, created_by: str, data: dict) -> Sprint:
-    name = data.get('name')
-    if name is None:
-        raise ValidationError('Name is required.')
-    goal = data.get('goal', '')
-    start_date = data.get('start_date')
-    end_date = data.get('end_date')
-    return await create_sprint_repository(name, goal, start_date, end_date, project, created_by)
+    return await create_sprint_repository(data['name'], data['goal'], data.get('start_date'), data.get('end_date'), project, created_by)
 
 async def update_sprint(sprint: Sprint, data: dict) -> Sprint:
-    allowed_fields = ['name', 'goal', 'start_date', 'end_date']
-    filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
     if sprint.status != Sprint.Status.CREATED:
         raise ValidationError('You cannot edit Active or Completed sprints.')
-    for key, value in filtered_data.items():
+    for key, value in data.items():
         setattr(sprint, key, value)
     return await update_sprint_repository(sprint)
 
@@ -88,7 +80,7 @@ async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket, actor_id: str) ->
         raise ValidationError('You cannot add tickets to a completed sprint.')
     if sprint.project_id != ticket.project_id: #type: ignore
         raise ValidationError('Ticket does not belong to this project.')
-    if ticket.sprint is not None:
+    if ticket.sprint_id is not None: #type: ignore
         raise ValidationError('Ticket is already on another sprint.')
     ticket.sprint = sprint #type: ignore
     await update_ticket(ticket)

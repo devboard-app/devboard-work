@@ -6,10 +6,16 @@ from projects.models import ProjectMembership
 from projects.services import get_project_or_404
 from teams.models import TeamMembership
 from tickets.services import get_ticket_or_404
+from work.serializers import validated
 from work.views import AsyncAPIView
 
 from .permissions import require_project_role, require_team_role
-from .serializers import LabelListSerializer, LabelSerializer
+from .serializers import (
+    LabelInputSerializer,
+    LabelListSerializer,
+    LabelSerializer,
+    TicketLabelInputSerializer,
+)
 from .services import (
     apply_label_to_ticket,
     create_label,
@@ -36,7 +42,8 @@ class LabelListCreateView(AsyncAPIView):
     async def post(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
-        label = await create_label(await get_project_or_404(project_id, team_id) , request.data)
+        data = validated(LabelInputSerializer, request.data)
+        label = await create_label(await get_project_or_404(project_id, team_id) , data)
         serializer = LabelSerializer(label)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -53,7 +60,8 @@ class LabelDetailView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
         label = await get_label_or_404(label_id, project_id)
-        updated_label = await update_label(label, request.data)
+        data = validated(LabelInputSerializer, request.data, partial=True)
+        updated_label = await update_label(label, data)
         serializer = LabelSerializer(updated_label)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -78,7 +86,8 @@ class TicketLabelView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         membership = await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         ticket = await get_ticket_or_404(ticket_id, project_id)
-        label = await get_label_or_404(request.data.get('label_id'), project_id)
+        data = validated(TicketLabelInputSerializer, request.data)
+        label = await get_label_or_404(data['label_id'], project_id)
         await apply_label_to_ticket(ticket, label, request.user.user_id, ProjectMembership.Role(membership.role))
         return Response(status=status.HTTP_200_OK)
 
