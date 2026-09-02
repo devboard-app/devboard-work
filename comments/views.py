@@ -6,6 +6,7 @@ from projects.permissions import require_project_role
 from teams.models import TeamMembership
 from teams.permissions import require_team_role
 from tickets.services import get_ticket_or_404
+from work.pagination import get_limit_offset, paginated
 from work.serializers import validated
 from work.views import AsyncAPIView
 
@@ -26,11 +27,12 @@ class CommentListCreateView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         await get_ticket_or_404(ticket_id, project_id)
-        comments = await list_ticket_comments(ticket_id)
+        limit, offset = get_limit_offset(request)
+        comments, total = await list_ticket_comments(ticket_id, limit, offset)
         ids = list(dict.fromkeys(str(i) for c in comments for i in c.attachment_ids))
         resolved = await resolve_attachments(ids)
         serializer = CommentSerializer(comments, many=True, context ={'resolved_attachments': resolved})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
 
     async def post(self, request, team_id, project_id, ticket_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)

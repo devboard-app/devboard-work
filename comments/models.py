@@ -21,7 +21,7 @@ class Comment(models.Model):
 
     class Meta:
         db_table = 'comments'
-        ordering: ClassVar = ['created_at']
+        ordering: ClassVar = ['created_at', 'id']
         indexes: ClassVar = [models.Index(fields=['ticket', 'created_at'])]
 
     def __str__(self):

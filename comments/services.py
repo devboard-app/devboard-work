@@ -44,8 +44,8 @@ async def _resolve_mentions(body: str, author_id: str, project_id: str) -> list[
         mentioned.append(uuid.UUID(str(user_id)))
     return mentioned
 
-async def list_ticket_comments(ticket_id: str) -> list[Comment]:
-    return await get_comments_by_ticket(ticket_id)
+async def list_ticket_comments(ticket_id: str, limit: int, offset: int) -> tuple[list[Comment], int]:
+    return await get_comments_by_ticket(ticket_id, limit, offset)
 
 async def get_comment_or_404(comment_id: str, ticket_id: str) -> Comment:
     comment = await get_comment_by_id(comment_id, ticket_id)

@@ -70,8 +70,8 @@ async def get_ticket_or_404(ticket_id: str, project_id: str) -> Ticket:
         raise NotFound('Ticket not found.')
     return ticket
 
-async def list_project_tickets(project_id: str) -> list[Ticket]:
-    return await get_tickets_by_project(project_id)
+async def list_project_tickets(project_id: str, limit: int, offset: int) -> tuple[list[Ticket], int]:
+    return await get_tickets_by_project(project_id, limit, offset)
 
 @retry(retry = retry_if_exception_type(IntegrityError), stop=stop_after_attempt(5), wait=wait_random_exponential(multiplier=0.05, max=0.5), reraise=True)
 async def _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date, story_points) -> Ticket:
@@ -161,8 +161,8 @@ async def get_board(project_id: str) -> dict:
         board[ticket.status].append(ticket)
     return {'sprint': sprint, 'board': board}
 
-async def get_backlog(project_id: str) -> list[Ticket]:
-    return await get_tickets_by_project_and_no_sprint(project_id)
+async def get_backlog(project_id: str, limit: int, offset: int) -> tuple[list[Ticket],int]:
+    return await get_tickets_by_project_and_no_sprint(project_id, limit, offset)
 
 
 def _snapshot_ticket(ticket: Ticket) -> dict:

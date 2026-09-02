@@ -3,8 +3,10 @@ from tickets.models import Ticket
 from .models import Comment
 
 
-async def get_comments_by_ticket(ticket_id: str) -> list[Comment]:
-    return [c async for c in Comment.objects.filter(ticket_id=ticket_id)]
+async def get_comments_by_ticket(ticket_id: str, limit: int, offset: int) -> tuple[list[Comment], int]:
+    qs = Comment.objects.filter(ticket_id=ticket_id)
+    total = await qs.acount()
+    return [c async for c in qs[offset:offset + limit]], total
 
 async def get_comment_by_id(comment_id: str, ticket_id: str) -> Comment | None:
     return await Comment.objects.filter(id=comment_id, ticket_id=ticket_id).afirst()

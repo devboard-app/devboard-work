@@ -5,6 +5,7 @@ from projects.models import ProjectMembership
 from projects.services import get_project_or_404
 from sprints.serializers import SprintListSerializer
 from teams.models import TeamMembership
+from work.pagination import get_limit_offset, paginated
 from work.serializers import validated
 from work.views import AsyncAPIView
 
@@ -27,9 +28,10 @@ class TicketListCreateView(AsyncAPIView):
     async def get(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
-        tickets = await list_project_tickets(project_id)
+        limit, offset = get_limit_offset(request)
+        tickets, total = await list_project_tickets(project_id, limit, offset)
         serializer = TicketListSerializer(tickets, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
 
     async def post(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
@@ -88,6 +90,7 @@ class BacklogView(AsyncAPIView):
     async def get(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
-        tickets = await get_backlog(str(project_id))
+        limit, offset =  get_limit_offset(request)
+        tickets, total = await get_backlog(str(project_id), limit, offset)
         serializer = TicketSerializer(tickets, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
