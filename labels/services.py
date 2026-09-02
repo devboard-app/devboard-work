@@ -28,21 +28,14 @@ async def list_project_labels(project_id: str) -> list[Label]:
     return await get_labels_by_project(project_id)
 
 async def create_label(project, data) -> Label:
-    name = data.get('name')
-    color = data.get('color', '#6B7280') #neutral grey
-    if name is None:
-        raise ValidationError('Name is required.')
     try:
-        return await create_label_repository(name=name, color=color, project=project)
+        return await create_label_repository(name=data['name'], color=data['color'], project=project)
     except IntegrityError:
         raise ValidationError('A label with this name already exists in this project.')
     
 
 async def update_label(label: Label, data: dict) -> Label:
-    allowed_fields = ['name', 'color']
-    filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
-
-    for key, value in filtered_data.items():
+    for key, value in data.items():
         setattr(label, key, value)
     try:
         return await update_label_repository(label=label)
