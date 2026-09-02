@@ -74,28 +74,22 @@ async def list_project_tickets(project_id: str) -> list[Ticket]:
     return await get_tickets_by_project(project_id)
 
 @retry(retry = retry_if_exception_type(IntegrityError), stop=stop_after_attempt(5), wait=wait_random_exponential(multiplier=0.05, max=0.5), reraise=True)
-async def _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date) -> Ticket:
+async def _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date, story_points) -> Ticket:
     ticket_number = await get_next_ticket_number(str(project.id))
     key = f'{project.key}-{ticket_number}'
     return await create_ticket_repository(
         title=title, description=description, type=type, priority=priority, status=status,
         project=project, created_by=created_by, ticket_number=ticket_number, key=key,
-        assignee_id=assignee_id, parent_epic=parent_epic, due_date=due_date,
+        assignee_id=assignee_id, parent_epic=parent_epic, due_date=due_date, story_points=story_points
     )
 
 async def create_ticket(project: Project, created_by: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
-    title = data.get('title')
-    type = data.get('type')
+    title = data['title']
+    type = data['type']
+    description = data['description']
+    priority = data['priority']
+    status = data['status']
     story_points = data.get('story_points')
-    if title is None:
-        raise ValidationError('Title is required.')
-    if type is None:
-        raise ValidationError('Type is required.')
-    if story_points:
-        validate_story_point(story_points)
-    description = data.get('description', '')
-    priority = data.get('priority', Ticket.Priority.MEDIUM)
-    status = data.get('status', Ticket.Status.BACKLOG)
     assignee_id = data.get('assignee_id')
     parent_epic_id = data.get('parent_epic')
     due_date = data.get('due_date')
@@ -103,7 +97,7 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
     parent_epic = await _validate_epic_rules(ticket_type=type, project_id=str(project.id), requester_role=requester_role, assignee_id=assignee_id, parent_epic_id=parent_epic_id)
 
     try:
-        ticket = await _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date)
+        ticket = await _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date, story_points)
     except IntegrityError:
         logger.exception(f"Could not allocate a ticket number for project {project.key} after 5 attempts")
         raise ValidationError("Could not allocate a ticket number, please retry.")
@@ -117,37 +111,33 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
     
 
 async def update_ticket(ticket: Ticket, requester_id: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
-    allowed_fields = ['title', 'description', 'type', 'priority', 'status', 'assignee_id', 'story_points', 'parent_epic', 'due_date']
-    filtered_data = {k: v for k, v in data.items() if k in allowed_fields}
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket') 
-    if 'assignee_id' in filtered_data and filtered_data['assignee_id'] != requester_id and not can_assign_ticket(requester_role):
+    if 'assignee_id' in data and str(data['assignee_id']) != requester_id and not can_assign_ticket(requester_role):
         raise PermissionDenied('Only Project Lead can assign tickets to others.')
-    if 'story_points' in filtered_data and filtered_data['story_points'] is not None:
-        validate_story_point(filtered_data['story_points'])
 
     old_snapshot= _snapshot_ticket(ticket)
 
-    if 'parent_epic' in filtered_data:
-        epic_id = filtered_data['parent_epic']
+    if 'parent_epic' in data:
+        epic_id = data['parent_epic']
         if epic_id:
             parent_epic = await get_ticket_by_id(epic_id, str(ticket.project_id)) #type: ignore
             if parent_epic is None:
                 raise ValidationError('Parent epic not found.')
             if parent_epic.type != Ticket.Type.EPIC:
                 raise ValidationError('parent_epic must be of type Epic.')
-            filtered_data['parent_epic'] = parent_epic
+            data['parent_epic'] = parent_epic
         else:
-            filtered_data['parent_epic'] = None
+            data['parent_epic'] = None
 
-    for key, value in filtered_data.items():
+    for key, value in data.items():
         setattr(ticket, key, value)
     try:
         await update_ticket_repository(ticket)
     except IntegrityError:
         raise ValidationError('A ticket with this key already exists.')
 
-    await _publish_ticket_update_events(ticket, requester_id, filtered_data, old_snapshot)
+    await _publish_ticket_update_events(ticket, requester_id, data, old_snapshot)
     return ticket
 
 async def delete_ticket(ticket: Ticket, requester_id: str) -> None:
@@ -188,42 +178,43 @@ def _snapshot_ticket(ticket: Ticket) -> dict:
         'story_points': ticket.story_points
     }
 
-async def _publish_ticket_update_events(ticket: Ticket, requester_id: str, filtered_data: dict, old: dict) -> None:
-    new_assignee_id = filtered_data.get('assignee_id')
-    new_parent_epic = filtered_data.get('parent_epic') 
+async def _publish_ticket_update_events(ticket: Ticket, requester_id: str, data: dict, old: dict) -> None:
+    new_assignee_id = str(data['assignee_id']) if data.get('assignee_id') else None
+    new_due_date = data['due_date'].isoformat() if data.get('due_date') else None
+    new_parent_epic = data.get('parent_epic')
 
     try:
-        if 'title' in filtered_data and old['title'] != filtered_data.get('title'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='title', from_value=old['title'], to_value=filtered_data['title'])
+        if 'title' in data and old['title'] != data.get('title'):
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='title', from_value=old['title'], to_value=data['title'])
 
-        if 'description' in filtered_data and old['description'] != filtered_data.get('description'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='description', from_value=old['description'], to_value=filtered_data['description'])
+        if 'description' in data and old['description'] != data.get('description'):
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='description', from_value=old['description'], to_value=data['description'])
 
-        if 'priority' in filtered_data and old['priority'] != filtered_data.get('priority'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='priority', from_value=old['priority'], to_value=filtered_data['priority'])
+        if 'priority' in data and old['priority'] != data.get('priority'):
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='priority', from_value=old['priority'], to_value=data['priority'])
 
-        if 'type' in filtered_data and old['type'] != filtered_data.get('type'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='type', from_value=old['type'], to_value=filtered_data['type'])
+        if 'type' in data and old['type'] != data.get('type'):
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='type', from_value=old['type'], to_value=data['type'])
 
-        if 'due_date' in filtered_data and old['due_date'] != filtered_data.get('due_date'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='due_date', from_value=old['due_date'], to_value=filtered_data['due_date'])
+        if 'due_date' in data and old['due_date'] != new_due_date:
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='due_date', from_value=old['due_date'], to_value=new_due_date)
 
-        if 'story_points' in filtered_data and old['story_points'] != filtered_data.get('story_points'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='story_points', from_value=old['story_points'], to_value=filtered_data['story_points'])
+        if 'story_points' in data and old['story_points'] != data.get('story_points'):
+            await publish_ticket_updated(ticket, actor_id=requester_id, field='story_points', from_value=old['story_points'], to_value=data['story_points'])
 
         if new_assignee_id and new_assignee_id != old['assignee_id']:
             await publish_ticket_assigned(ticket, actor_id=requester_id, recipient_id=new_assignee_id)
 
-        if 'assignee_id' in filtered_data and new_assignee_id is None and old['assignee_id']:
+        if 'assignee_id' in data and new_assignee_id is None and old['assignee_id']:
             await publish_ticket_unassigned(ticket, actor_id=requester_id, previous_assignee_id=old['assignee_id'])
 
-        if 'status' in filtered_data and filtered_data['status'] != old['status'] and ticket.assignee_id:
+        if 'status' in data and data['status'] != old['status'] and ticket.assignee_id:
             await publish_ticket_status_changed(ticket, actor_id=requester_id, recipient_id=str(ticket.assignee_id), from_status=old['status'], to_status=ticket.status)
 
         if new_parent_epic and str(new_parent_epic.id) != old['parent_epic_id']:
             await publish_ticket_epic_linked(ticket, actor_id=requester_id, epic_id=str(new_parent_epic.id), epic_key=new_parent_epic.key)
 
-        if old['parent_epic_id'] and new_parent_epic is None and 'parent_epic' in filtered_data:
+        if old['parent_epic_id'] and new_parent_epic is None and 'parent_epic' in data:
             old_parent_epic = await get_ticket_by_id(old['parent_epic_id'], str(ticket.project_id)) #type: ignore
             if old_parent_epic:
                 await publish_ticket_epic_unlinked(ticket, actor_id=requester_id, epic_id=old['parent_epic_id'], epic_key=old_parent_epic.key)

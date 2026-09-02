@@ -3,6 +3,7 @@ from typing import ClassVar
 
 from django.db import models
 
+STORY_POINTS = [1, 2, 3, 5, 8, 13, 21]
 
 class Ticket(models.Model):
     class Type(models.TextChoices):
@@ -24,6 +25,7 @@ class Ticket(models.Model):
         IN_PROGRESS = 'in_progress', 'In Progress'
         IN_REVIEW = 'in_review', 'In Review'
         DONE = 'done', 'Done'
+    
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     ticket_number = models.PositiveIntegerField()

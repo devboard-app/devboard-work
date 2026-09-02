@@ -27,7 +27,8 @@ async def create_ticket(
         key: str,
         assignee_id: str | None = None,
         parent_epic: Ticket | None = None,
-        due_date = None) -> Ticket:
+        due_date = None,
+        story_points: int | None = None) -> Ticket:
     return await Ticket.objects.acreate(
         title=title, 
         description=description,
@@ -40,7 +41,8 @@ async def create_ticket(
         key=key,
         assignee_id=assignee_id,
         parent_epic=parent_epic,
-        due_date=due_date
+        due_date=due_date,
+        story_points=story_points,
     )
 
 async def update_ticket(ticket: Ticket) -> Ticket:
