@@ -48,6 +48,7 @@ class Ticket(models.Model):
     sprint = models.ForeignKey('sprints.Sprint', null=True, blank=True, on_delete=models.SET_NULL, related_name='tickets')
     class Meta:
         db_table = 'tickets'
+        ordering: ClassVar = ['-created_at', 'id']
         unique_together : ClassVar = [('project', 'ticket_number')]
 
     def __str__(self):
