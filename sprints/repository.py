@@ -33,5 +33,13 @@ async def delete_sprint(sprint: Sprint) -> None:
 async def get_sprint_tickets(sprint: Sprint) -> list[Ticket]:
     return [m async for m in Ticket.objects.filter(sprint=sprint).prefetch_related('labels')]
 
+async def sprint_has_tickets(sprint: Sprint) -> bool:
+    return await Ticket.objects.filter(sprint=sprint).aexists()
+
+async def get_sprint_tickets_page(sprint: Sprint, limit: int, offset: int) -> tuple[list[Ticket], int]:
+    qs = Ticket.objects.filter(sprint=sprint).prefetch_related('labels')
+    total = await qs.acount()
+    return [t async for t in qs[offset:offset + limit]], total
+
 async def move_unfinished_tickets_to_backlog(sprint: Sprint) -> None:
     await Ticket.objects.filter(sprint=sprint).exclude(status=Ticket.Status.DONE).aupdate(sprint=None, status=Ticket.Status.BACKLOG)

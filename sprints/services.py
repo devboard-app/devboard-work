@@ -17,9 +17,10 @@ from .repository import delete_sprint as delete_sprint_repository
 from .repository import (
     get_active_sprint_by_project,
     get_sprint_by_id,
-    get_sprint_tickets,
+    get_sprint_tickets_page,
     get_sprints_by_project,
     move_unfinished_tickets_to_backlog,
+    sprint_has_tickets,
 )
 from .repository import update_sprint as update_sprint_repository
 
@@ -54,7 +55,7 @@ async def start_sprint(sprint: Sprint, project_id: str, team_id: str, actor_id: 
         raise ValidationError('You cannot start Active or Completed sprints.')
     if await get_active_sprint_by_project(project_id):
         raise ValidationError('There\'s already an active Sprint.')
-    if not await get_sprint_tickets(sprint):
+    if not await sprint_has_tickets(sprint):
         raise ValidationError('Sprint must have at least one ticket.')
     sprint.status = Sprint.Status.ACTIVE
     try:
@@ -91,5 +92,5 @@ async def remove_ticket_from_sprint(ticket: Ticket, sprint: Sprint, actor_id: st
     await update_ticket(ticket)
     await publish_ticket_removed_from_sprint(ticket=ticket, actor_id=actor_id, sprint=sprint)
 
-async def list_sprint_tickets(sprint: Sprint) -> list[Ticket]:
-    return await get_sprint_tickets(sprint)
+async def list_sprint_tickets(sprint: Sprint, limit: int, offset: int) -> tuple[list[Ticket], int]:
+    return await get_sprint_tickets_page(sprint, limit, offset)

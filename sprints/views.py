@@ -7,6 +7,7 @@ from projects.services import get_project_or_404
 from teams.models import TeamMembership
 from tickets.serializers import TicketSerializer
 from tickets.services import get_ticket_or_404
+from work.pagination import get_limit_offset, paginated
 from work.serializers import validated
 from work.views import AsyncAPIView
 
@@ -102,9 +103,10 @@ class SprintTicketView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         sprint = await get_sprint_or_404(sprint_id, project_id)
-        tickets = await list_sprint_tickets(sprint)
+        limit, offset = get_limit_offset(request)
+        tickets, total = await list_sprint_tickets(sprint, limit, offset)
         serializer = TicketSerializer(tickets, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
 
     async def post(self, request, team_id, project_id, sprint_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
