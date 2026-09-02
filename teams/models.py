@@ -14,6 +14,7 @@ class Team(models.Model):
 
     class Meta:
         db_table= 'teams'
+        ordering: ClassVar = ['name', 'id']
 
     def __str__(self):
         return self.name
@@ -35,6 +36,7 @@ class TeamMembership(models.Model):
 
     class Meta:
         db_table = 'memberships'
+        ordering: ClassVar = ['joined_at', 'id']
         unique_together: ClassVar = [('user_id', 'team')]
 
     def __str__(self):

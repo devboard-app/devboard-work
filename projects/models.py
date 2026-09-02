@@ -16,6 +16,7 @@ class Project(models.Model):
 
     class Meta:
         db_table= 'projects'
+        ordering: ClassVar = ['name', 'id']
         unique_together: ClassVar = [('team', 'key')]
 
     def __str__(self):
@@ -37,6 +38,7 @@ class ProjectMembership(models.Model):
 
     class Meta:
         db_table = 'project_memberships'
+        ordering: ClassVar = ['joined_at', 'id']
         unique_together: ClassVar = [('user_id', 'project')]
 
     def __str__(self):

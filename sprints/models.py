@@ -24,6 +24,8 @@ class Sprint(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        db_table = 'sprints'
+        ordering: ClassVar = ['-created_at', 'id']
         constraints: ClassVar = [
             models.UniqueConstraint(fields=['project'], condition=models.Q(status='active'), name='unique_active_sprint_per_project')
         ]

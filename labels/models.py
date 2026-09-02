@@ -16,6 +16,7 @@ class Label(models.Model):
 
     class Meta:
         db_table = 'labels'
+        ordering: ClassVar = ['name', 'id']
         unique_together : ClassVar =[('project', 'name')]
 
     def __str__(self):
