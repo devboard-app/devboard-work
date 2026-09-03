@@ -1,6 +1,6 @@
 import uuid
 
-from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
 from projects.models import ProjectMembership
 from projects.repository import get_memberships_by_project
@@ -12,7 +12,7 @@ from work.infrastructure.events import (
     publish_comment_updated,
 )
 
-from .infrastructure import resolve_usernames
+from .infrastructure import resolve_usernames, verify_attachments
 from .mentions import extract_mentions
 from .models import Comment
 from .repository import create_comment as create_comment_repository
@@ -56,6 +56,10 @@ async def get_comment_or_404(comment_id: str, ticket_id: str) -> Comment:
 async def create_comment(ticket: Ticket, requester_id: str, data: dict) -> Comment:
     body = data['body']
     attachment_ids = data['attachment_ids']
+    if attachment_ids:
+        requested = {str(i) for i in attachment_ids}
+        if await verify_attachments(sorted(requested), requester_id) != requested:
+            raise ValidationError({'attachment_ids': "Unknown attachment, or it does not belong to you."})
     mentioned_user_ids = await _resolve_mentions(body, requester_id, ticket.project_id)  # type: ignore
     comment = await create_comment_repository(ticket, requester_id, body, attachment_ids, mentioned_user_ids)
     # notify the assignee only if they were not mentioned
