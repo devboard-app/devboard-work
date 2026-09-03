@@ -11,9 +11,6 @@ from work.views import AsyncAPIView
 from .infrastructure import send_member_notification
 from .models import TeamMembership
 from .permissions import require_team_role
-from .repository import (
-    get_membership_by_team,
-)
 from .serializers import (
     TeamInputSerializer,
     TeamMemberInputSerializer,
@@ -25,6 +22,7 @@ from .services import (
     add_member,
     change_member_role,
     create_team_with_owner,
+    get_membership_by_team,
     get_team_or_404,
     leave_team,
     list_my_teams,
