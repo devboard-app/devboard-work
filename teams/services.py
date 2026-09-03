@@ -7,12 +7,10 @@ from .repository import (
     create_membership,
     create_team,
     delete_membership,
+    get_membership_by_team,
     get_membership_by_user_and_team,
     get_team_by_id,
     get_teams_by_user,
-)
-from .repository import (
-    get_membership_by_team as get_membership_by_team_repo,
 )
 
 Role = TeamMembership.Role
@@ -23,8 +21,8 @@ async def get_team_or_404(pk: str) -> Team:
         raise NotFound('Team not found.')
     return team
 
-async def get_membership_by_team(team_id: str, limit: int, offset: int) -> tuple[list[TeamMembership], int]:
-    memberships, total = await get_membership_by_team_repo(team_id, limit, offset)
+async def list_team_members(team_id: str, limit: int, offset: int) -> tuple[list[TeamMembership], int]:
+    memberships, total = await get_membership_by_team(team_id, limit, offset)
     return memberships, total
 
 async def list_my_teams(user_id: str, limit: int, offset: int):

@@ -22,10 +22,10 @@ from .services import (
     add_member,
     change_member_role,
     create_team_with_owner,
-    get_membership_by_team,
     get_team_or_404,
     leave_team,
     list_my_teams,
+    list_team_members,
     remove_member,
     update_team,
 )
@@ -80,7 +80,7 @@ class TeamMemberListAddView(AsyncAPIView):
         await get_team_or_404(str(pk))
         await require_team_role(request.user.user_id, str(pk), Role.OWNER, Role.ADMIN, Role.MEMBER, Role.VIEWER)
         limit, offset = get_limit_offset(request)
-        memberships, total = await get_membership_by_team(str(pk), limit, offset)
+        memberships, total = await list_team_members(str(pk), limit, offset)
         serializer = TeamMembershipSerializer(memberships, many=True)
         return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
 
