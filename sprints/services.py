@@ -31,8 +31,8 @@ async def get_sprint_or_404(sprint_id: str, project_id: str) -> Sprint:
         raise NotFound('Sprint not found.')
     return sprint
 
-async def list_project_sprints(project_id: str) -> list[Sprint]:
-    return  await get_sprints_by_project(project_id)
+async def list_project_sprints(project_id: str, limit: int, offset: int) -> tuple[list[Sprint], int]:
+    return await get_sprints_by_project(project_id, limit, offset)
 
 
 async def create_sprint(project: Project, created_by: str, data: dict) -> Sprint:

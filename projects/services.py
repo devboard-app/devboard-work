@@ -8,7 +8,7 @@ from .models import Project, ProjectMembership
 from .repository import (
     create_project,
     create_project_membership,
-    get_memberships_by_project,
+    get_memberships_by_project_page,
     get_project_by_id,
     get_project_membership,
     get_projects_by_team,
@@ -34,8 +34,8 @@ async def get_project_member_or_404(user_id: str, project_id: str) -> ProjectMem
         raise NotFound('Member not found in this project.')
     return membership
 
-async def list_team_projects(team_id: str) -> list[Project]:
-    return await get_projects_by_team(team_id)
+async def list_team_projects(team_id: str, limit: int, offset: int) -> tuple[list[Project], int]:
+    return await get_projects_by_team(team_id, limit, offset)
 
 async def create_project_with_lead(data: dict, team: Team, creator_id: str) -> Project:
     try:
@@ -76,8 +76,8 @@ async def remove_project_member(project_id: str, user_id: str) -> None:
         raise NotFound('Member not found in this project.')
     await del_project_membership(membership)
 
-async def list_project_members(project_id: str) -> list[ProjectMembership]:
-    return await get_memberships_by_project(project_id)
+async def list_project_members(project_id: str, limit: int, offset: int) -> tuple[list[ProjectMembership], int]:
+    return await get_memberships_by_project_page(project_id, limit, offset)
 
 async def update_project_member(membership: ProjectMembership, role: str) -> ProjectMembership:
     return await update_project_membership(membership, role)

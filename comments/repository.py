@@ -1,12 +1,11 @@
 from tickets.models import Ticket
+from work.pagination import page
 
 from .models import Comment
 
 
 async def get_comments_by_ticket(ticket_id: str, limit: int, offset: int) -> tuple[list[Comment], int]:
-    qs = Comment.objects.filter(ticket_id=ticket_id)
-    total = await qs.acount()
-    return [c async for c in qs[offset:offset + limit]], total
+    return await page(Comment.objects.filter(ticket_id=ticket_id), limit, offset)
 
 async def get_comment_by_id(comment_id: str, ticket_id: str) -> Comment | None:
     return await Comment.objects.filter(id=comment_id, ticket_id=ticket_id).afirst()
