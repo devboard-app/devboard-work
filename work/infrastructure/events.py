@@ -54,7 +54,7 @@ async def publish_ticket_updated(ticket, actor_id: str, field: str, from_value: 
         project_id=ticket.project_id,
     )
 
-async def publish_ticket_status_changed(ticket, actor_id: str, recipient_id: str, from_status: str, to_status: str) -> None:
+async def publish_ticket_status_changed(ticket, actor_id: str, recipient_id: str | None, from_status: str, to_status: str) -> None:
     await publish_event(
         "ticket.status_changed",
         project_id=ticket.project_id,

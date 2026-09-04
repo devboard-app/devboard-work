@@ -208,8 +208,8 @@ async def _publish_ticket_update_events(ticket: Ticket, requester_id: str, data:
         if 'assignee_id' in data and new_assignee_id is None and old['assignee_id']:
             await publish_ticket_unassigned(ticket, actor_id=requester_id, previous_assignee_id=old['assignee_id'])
 
-        if 'status' in data and data['status'] != old['status'] and ticket.assignee_id:
-            await publish_ticket_status_changed(ticket, actor_id=requester_id, recipient_id=str(ticket.assignee_id), from_status=old['status'], to_status=ticket.status)
+        if 'status' in data and data['status'] != old['status']:
+            await publish_ticket_status_changed(ticket, actor_id=requester_id, recipient_id=str(ticket.assignee_id) if ticket.assignee_id else None, from_status=old['status'], to_status=ticket.status)
 
         if new_parent_epic and str(new_parent_epic.id) != old['parent_epic_id']:
             await publish_ticket_epic_linked(ticket, actor_id=requester_id, epic_id=str(new_parent_epic.id), epic_key=new_parent_epic.key)
