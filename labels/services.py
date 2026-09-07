@@ -1,8 +1,9 @@
 from django.db import IntegrityError
-from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from rest_framework.exceptions import NotFound, PermissionDenied
 
 from tickets.models import Ticket
 from tickets.services import can_edit_ticket
+from work.exceptions import Conflict
 from work.infrastructure.events import publish_label_applied, publish_label_removed
 
 from .models import Label
@@ -31,7 +32,7 @@ async def create_label(project, data) -> Label:
     try:
         return await create_label_repository(name=data['name'], color=data['color'], project=project)
     except IntegrityError:
-        raise ValidationError('A label with this name already exists in this project.')
+        raise Conflict('A label with this name already exists in this project.')
     
 
 async def update_label(label: Label, data: dict) -> Label:
@@ -40,7 +41,7 @@ async def update_label(label: Label, data: dict) -> Label:
     try:
         return await update_label_repository(label=label)
     except IntegrityError:
-        raise ValidationError('A label with this name already exists in this project.')
+        raise Conflict('A label with this name already exists in this project.')
 
 async def delete_label(label: Label) -> None:
     await delete_label_repository(label)
