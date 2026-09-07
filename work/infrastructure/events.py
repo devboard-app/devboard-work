@@ -140,6 +140,8 @@ async def publish_sprint_completed(sprint, team_id: str, actor_id: str) -> None:
         sprint_id=sprint.id,
         sprint_name=sprint.name,
         project_id=sprint.project_id,
+        start_date=sprint.start_date.isoformat() if sprint.start_date else None,
+        end_date=sprint.end_date.isoformat() if sprint.end_date else None,
     )
 
 async def publish_ticket_added_to_sprint(ticket, actor_id: str, sprint) -> None:
