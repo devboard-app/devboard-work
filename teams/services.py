@@ -1,4 +1,12 @@
-from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+import logging
+
+from rest_framework.exceptions import (
+    APIException,
+    NotFound,
+    PermissionDenied,
+)
+
+from work.exceptions import Conflict
 
 from .infrastructure import get_user_id_by_email
 from .models import Team, TeamMembership
@@ -14,6 +22,7 @@ from .repository import (
 )
 
 Role = TeamMembership.Role
+logger = logging.getLogger(__name__)
 
 async def get_team_or_404(pk: str) -> Team:
     team = await get_team_by_id(pk)
@@ -33,10 +42,10 @@ async def create_team_with_owner(name: str, description: str, owner_id: str):
     team = await create_team(name, description, owner_id)
     try:
         await create_membership(team, owner_id, Role.OWNER)
-    except Exception:  # noqa: BLE001
+    except Exception:  
+        logger.exception(f'Rolling back team {team.id}: owner membership creation failed.')
         await team.adelete()
-        raise ValidationError("Something went wrong, please try again.")
-    
+        raise APIException("Could not create the team, please try again.")
     return team    
 
 async def add_member(team: Team, requester_role: str, email: str, target_role: str) -> TeamMembership:
@@ -47,7 +56,7 @@ async def add_member(team: Team, requester_role: str, email: str, target_role: s
         raise NotFound('User not found.')
     existing = await get_membership_by_user_and_team(str(user_id), str(team.id))
     if existing is not None:
-        raise ValidationError('User is already a member.')
+        raise Conflict('User is already a member.')
     return await create_membership(team, user_id, target_role)
 
 async def remove_member(team_id: str, user_id: str, requester_role: str) -> None:

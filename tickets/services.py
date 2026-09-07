@@ -11,6 +11,7 @@ from tenacity import (
 
 from projects.models import Project, ProjectMembership
 from sprints.repository import get_active_sprint_by_project, get_sprint_tickets
+from work.exceptions import Conflict
 from work.infrastructure.events import (
     publish_ticket_assigned,
     publish_ticket_created,
@@ -135,7 +136,7 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
     try:
         await update_ticket_repository(ticket)
     except IntegrityError:
-        raise ValidationError('A ticket with this key already exists.')
+        raise Conflict('A ticket with this key already exists.')
 
     await _publish_ticket_update_events(ticket, requester_id, data, old_snapshot)
     return ticket

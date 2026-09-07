@@ -1,8 +1,11 @@
 
+import logging
+
 from django.db import IntegrityError
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import APIException, NotFound
 
 from teams.models import Team
+from work.exceptions import Conflict
 
 from .models import Project, ProjectMembership
 from .repository import (
@@ -21,6 +24,7 @@ from .repository import (
     delete_project_membership as del_project_membership,
 )
 
+logger = logging.getLogger(__name__)
 
 async def get_project_or_404(project_id: str, team_id: str) -> Project:
     project = await get_project_by_id(project_id, team_id)
@@ -41,13 +45,14 @@ async def create_project_with_lead(data: dict, team: Team, creator_id: str) -> P
     try:
         project = await create_project(data['name'], data['key'], data['description'], team, creator_id)
     except IntegrityError:
-        raise ValidationError('A project with this key already exists.')
+        raise Conflict('A project with this key already exists.')
     
     try:
         await create_project_membership(project, creator_id, ProjectMembership.Role.LEAD)
-    except Exception:  # noqa: BLE001
+    except Exception:
+        logger.exception(f'Rolling back project {project.id}: membership creation failed')
         await delete_project(project)
-        raise ValidationError("Something went wrong, please try again.")
+        raise APIException("Could not create the project, please try again.")
     
     return project
 
@@ -57,7 +62,7 @@ async def update_project(project: Project, data: dict) -> Project:
     try:
         await project.asave()
     except IntegrityError:
-        raise ValidationError('A project with this key already exists.')
+        raise Conflict('A project with this key already exists.')
     return project
 
 async def delete_project(project: Project) -> None:
@@ -66,7 +71,7 @@ async def delete_project(project: Project) -> None:
 async def add_project_member(project: Project, user_id: str, role: str) -> ProjectMembership:
     membership = await get_project_membership(user_id, str(project.id))
     if membership is not None:
-        raise ValidationError('User is already a member.')
+        raise Conflict('User is already a member.')
     
     return await create_project_membership(project, user_id, role)
 

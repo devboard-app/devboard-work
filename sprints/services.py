@@ -4,6 +4,7 @@ from rest_framework.exceptions import NotFound, ValidationError
 from projects.models import Project
 from tickets.models import Ticket
 from tickets.repository import update_ticket
+from work.exceptions import Conflict
 from work.infrastructure.events import (
     publish_sprint_completed,
     publish_sprint_started,
@@ -40,35 +41,35 @@ async def create_sprint(project: Project, created_by: str, data: dict) -> Sprint
 
 async def update_sprint(sprint: Sprint, data: dict) -> Sprint:
     if sprint.status != Sprint.Status.CREATED:
-        raise ValidationError('You cannot edit Active or Completed sprints.')
+        raise Conflict('You cannot edit Active or Completed sprints.')
     for key, value in data.items():
         setattr(sprint, key, value)
     return await update_sprint_repository(sprint)
 
 async def delete_sprint(sprint: Sprint) -> None:
     if sprint.status != Sprint.Status.CREATED:
-        raise ValidationError('You cannot delete Active or Completed sprints.')
+        raise Conflict('You cannot delete Active or Completed sprints.')
     await delete_sprint_repository(sprint)
 
 async def start_sprint(sprint: Sprint, project_id: str, team_id: str, actor_id: str) -> Sprint:
     if sprint.status != Sprint.Status.CREATED:
-        raise ValidationError('You cannot start Active or Completed sprints.')
+        raise Conflict('You cannot start Active or Completed sprints.')
     if await get_active_sprint_by_project(project_id):
-        raise ValidationError('There\'s already an active Sprint.')
+        raise Conflict('There\'s already an active Sprint.')
     if not await sprint_has_tickets(sprint):
-        raise ValidationError('Sprint must have at least one ticket.')
+        raise Conflict('Sprint must have at least one ticket.')
     sprint.status = Sprint.Status.ACTIVE
     try:
         sprint = await update_sprint_repository(sprint)
     except IntegrityError:
-        raise ValidationError("There\'s already an active Sprint.")
+        raise Conflict("There\'s already an active Sprint.")
     await publish_sprint_started(sprint, team_id=team_id, actor_id=actor_id)
 
     return sprint
 
 async def complete_sprint(sprint: Sprint, team_id: str, actor_id: str) -> Sprint:
     if sprint.status != Sprint.Status.ACTIVE:
-        raise ValidationError('You can only complete Active sprints.')
+        raise Conflict('You can only complete Active sprints.')
     await move_unfinished_tickets_to_backlog(sprint)
     sprint.status = Sprint.Status.COMPLETED
     sprint = await update_sprint_repository(sprint)
@@ -78,11 +79,11 @@ async def complete_sprint(sprint: Sprint, team_id: str, actor_id: str) -> Sprint
 
 async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket, actor_id: str) -> None:
     if sprint.status == Sprint.Status.COMPLETED:
-        raise ValidationError('You cannot add tickets to a completed sprint.')
+        raise Conflict('You cannot add tickets to a completed sprint.')
     if sprint.project_id != ticket.project_id: #type: ignore
         raise ValidationError('Ticket does not belong to this project.')
     if ticket.sprint_id is not None: #type: ignore
-        raise ValidationError('Ticket is already on another sprint.')
+        raise Conflict('Ticket is already on another sprint.')
     ticket.sprint = sprint #type: ignore
     await update_ticket(ticket)
     await publish_ticket_added_to_sprint(ticket=ticket, actor_id=actor_id, sprint=sprint)
