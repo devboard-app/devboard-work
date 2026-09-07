@@ -11,7 +11,7 @@ from tenacity import (
 
 from projects.models import Project, ProjectMembership
 from sprints.repository import get_active_sprint_by_project, get_sprint_tickets
-from work.exceptions import Conflict
+from work.exceptions import APIException, Conflict
 from work.infrastructure.events import (
     publish_ticket_assigned,
     publish_ticket_created,
@@ -101,7 +101,7 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
         ticket = await _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date, story_points)
     except IntegrityError:
         logger.exception(f"Could not allocate a ticket number for project {project.key} after 5 attempts")
-        raise ValidationError("Could not allocate a ticket number, please retry.")
+        raise APIException("Could not allocate a ticket number, please retry.")
         
     
     await publish_ticket_created(ticket, actor_id=created_by)
