@@ -1,6 +1,8 @@
 
+import logging
+
 from django.db import IntegrityError
-from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.exceptions import APIException, NotFound, ValidationError
 
 from teams.models import Team
 
@@ -21,6 +23,7 @@ from .repository import (
     delete_project_membership as del_project_membership,
 )
 
+logger = logging.getLogger(__name__)
 
 async def get_project_or_404(project_id: str, team_id: str) -> Project:
     project = await get_project_by_id(project_id, team_id)
@@ -45,9 +48,10 @@ async def create_project_with_lead(data: dict, team: Team, creator_id: str) -> P
     
     try:
         await create_project_membership(project, creator_id, ProjectMembership.Role.LEAD)
-    except Exception:  # noqa: BLE001
+    except Exception:
+        logger.exception(f'Rolling back project {project.id}: membership creation failed')
         await delete_project(project)
-        raise ValidationError("Something went wrong, please try again.")
+        raise APIException("Could not create the project, please try again.")
     
     return project
 

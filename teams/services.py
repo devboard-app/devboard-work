@@ -1,4 +1,11 @@
-from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+import logging
+
+from rest_framework.exceptions import (
+    APIException,
+    NotFound,
+    PermissionDenied,
+    ValidationError,
+)
 
 from .infrastructure import get_user_id_by_email
 from .models import Team, TeamMembership
@@ -14,6 +21,7 @@ from .repository import (
 )
 
 Role = TeamMembership.Role
+logger = logging.getLogger(__name__)
 
 async def get_team_or_404(pk: str) -> Team:
     team = await get_team_by_id(pk)
@@ -33,9 +41,10 @@ async def create_team_with_owner(name: str, description: str, owner_id: str):
     team = await create_team(name, description, owner_id)
     try:
         await create_membership(team, owner_id, Role.OWNER)
-    except Exception:  # noqa: BLE001
+    except Exception:  
+        logger.exception(f'Rolling back team {team.id}: owner membership creation failed.')
         await team.adelete()
-        raise ValidationError("Something went wrong, please try again.")
+        raise APIException("Something went wrong, please try again.")
     
     return team    
 
