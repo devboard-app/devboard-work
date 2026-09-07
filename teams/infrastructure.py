@@ -12,12 +12,12 @@ async def get_user_id_by_email(email: str) -> str | None:
                 params={'email': email},
                 headers={'X-Service-Key': settings.INTERNAL_API_KEY}
             )
-    except httpx.TransportError:
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+    except (httpx.TransportError, httpx.HTTPStatusError):
         raise ServiceUnavailable()
 
-    if response.status_code == 404:
-        return None
-    response.raise_for_status()
     return response.json().get('user_id')
 
 async def send_member_notification(to: str, team_name: str, inviter_name: str) -> None:
@@ -37,7 +37,6 @@ async def send_member_notification(to: str, team_name: str, inviter_name: str) -
                 json=payload,
                 headers={'X-Service-Key': settings.INTERNAL_API_KEY}
             )
+        response.raise_for_status()
     except (httpx.TransportError, httpx.HTTPStatusError):
         raise ServiceUnavailable()
-
-    response.raise_for_status()
