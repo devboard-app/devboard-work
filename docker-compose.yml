@@ -19,6 +19,20 @@ services:
     networks:
       - devboard-network
 
+  devboard-work-outbox-relay:
+    build:
+      context: .
+    container_name: devboard-work-outbox-relay
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: devboard-db
+      DB_PORT: 5432
+      REDIS_URL: redis://devboard-redis:6379/0
+    command: python manage.py drain_outbox
+    networks:
+      - devboard-network
+
 networks:
   devboard-network:
     name: devboard-network
