@@ -12,3 +12,7 @@ db.sqlite3
 staticfiles/
 .vscode
 test_e2e.py
+
+# Local-only unit tests (not committed by choice)
+tests/
+.pytest_cache/
