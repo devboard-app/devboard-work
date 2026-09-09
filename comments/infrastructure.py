@@ -6,6 +6,7 @@ from tenacity import (
     retry,
     retry_if_exception_type,
     stop_after_attempt,
+    stop_after_delay,
     wait_random_exponential,
 )
 
@@ -17,8 +18,8 @@ MAX_BATCH_SIZE = 100
 ATTEMPT_TIMEOUT = 2.0
 
 @retry(
-    retry=retry_if_exception_type(httpx.TransportError),
-    stop=stop_after_attempt(3),
+    retry=retry_if_exception_type((httpx.TransportError, httpx.HTTPStatusError)),
+    stop=(stop_after_attempt(3) | stop_after_delay(5)),
     wait=wait_random_exponential(multiplier=0.1, max=1.0),
     reraise=True
 )
