@@ -6,6 +6,7 @@ from rest_framework.exceptions import (
     PermissionDenied,
 )
 
+from outbox.writer import awrite_with_outbox
 from work.exceptions import Conflict
 
 from .infrastructure import get_user_id_by_email
@@ -13,6 +14,7 @@ from .models import Team, TeamMembership
 from .permissions import can_assign_role
 from .repository import (
     create_membership,
+    create_membership_sync,
     create_team,
     delete_membership,
     get_membership_by_team,
@@ -48,7 +50,7 @@ async def create_team_with_owner(name: str, description: str, owner_id: str):
         raise APIException("Could not create the team, please try again.")
     return team    
 
-async def add_member(team: Team, requester_role: str, email: str, target_role: str) -> TeamMembership:
+async def add_member(team: Team, requester_role: str, email: str, target_role: str, inviter_email: str) -> TeamMembership:
     if not can_assign_role(requester_role, target_role):
         raise PermissionDenied('You cannot assign this role.')
     user_id = await get_user_id_by_email(email)
@@ -57,7 +59,12 @@ async def add_member(team: Team, requester_role: str, email: str, target_role: s
     existing = await get_membership_by_user_and_team(str(user_id), str(team.id))
     if existing is not None:
         raise Conflict('User is already a member.')
-    return await create_membership(team, user_id, target_role)
+    payload = {"to": email, "subject": "You were invited to a team", "template": "team_invitation", "variables":{"team_name": team.name, "inviter_name": inviter_email}}
+
+    def _create():
+        return create_membership_sync(team, user_id, target_role)
+
+    return await awrite_with_outbox(_create, [('email', payload)])
 
 async def remove_member(team_id: str, user_id: str, requester_role: str) -> None:
     target_membership = await get_membership_by_user_and_team(str(user_id), str(team_id))
