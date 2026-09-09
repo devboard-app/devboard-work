@@ -46,8 +46,44 @@ async def create_ticket(
         story_points=story_points,
     )
 
+def create_ticket_sync(
+        id,
+        title: str,
+        description: str,
+        type: Ticket.Type,
+        priority: Ticket.Priority,
+        status: Ticket.Status,
+        project: Project,
+        created_by: str,
+        ticket_number: int,
+        key: str,
+        assignee_id: str | None = None,
+        parent_epic: Ticket | None = None,
+        due_date = None,
+        story_points: int | None = None) -> Ticket:
+    return Ticket.objects.create(
+        id=id,
+        title=title,
+        description=description,
+        type=type,
+        priority=priority,
+        status=status,
+        project=project,
+        created_by=created_by,
+        ticket_number=ticket_number,
+        key=key,
+        assignee_id=assignee_id,
+        parent_epic=parent_epic,
+        due_date=due_date,
+        story_points=story_points,
+    )
+
 async def update_ticket(ticket: Ticket) -> Ticket:
     await ticket.asave()
+    return ticket
+
+def update_ticket_sync(ticket: Ticket) -> Ticket:
+    ticket.save()
     return ticket
 
 async def delete_ticket(ticket: Ticket) -> None:
