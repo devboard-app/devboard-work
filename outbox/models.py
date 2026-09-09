@@ -17,4 +17,5 @@ class OutboxEvent(models.Model):
     attempts = models.IntegerField(default=0)
 
     class Meta:
+        db_table = 'outbox_events'
         indexes: ClassVar = [models.Index(fields=['delivered_at', 'created_at'])]
