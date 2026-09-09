@@ -41,6 +41,7 @@ async def publish_ticket_created(ticket, actor_id: str) -> None:
         ticket_id=ticket.id,
         ticket_key=ticket.key,
         story_points=ticket.story_points,
+        status=ticket.status,
     )
 
 async def publish_ticket_updated(ticket, actor_id: str, field: str, from_value: str, to_value: str | None) -> None:
