@@ -24,8 +24,14 @@ async def delete_label(label: Label) -> None:
 async def add_label_to_ticket(ticket: Ticket, label: Label) -> None:
     await ticket.labels.aadd(label)
 
+def add_label_to_ticket_sync(ticket: Ticket, label: Label) -> None:
+    ticket.labels.add(label)
+
 async def remove_label_from_ticket(ticket: Ticket, label: Label) -> None:
     await ticket.labels.aremove(label)
+
+def remove_label_from_ticket_sync(ticket: Ticket, label: Label) -> None:
+    ticket.labels.remove(label)
 
 async def get_ticket_labels(ticket: Ticket, limit: int, offset: int) -> tuple[list[Label], int]:
     return await page(Label.objects.filter(tickets=ticket), limit, offset)
