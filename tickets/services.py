@@ -16,19 +16,18 @@ from sprints.repository import get_active_sprint_by_project, get_sprint_tickets
 from work.exceptions import APIException, Conflict
 from work.infrastructure.events import (
     build_payload,
-    publish_ticket_deleted,
 )
 
 from .models import Ticket
 from .repository import (
     create_ticket_sync,
+    delete_ticket_sync,
     get_next_ticket_number,
     get_ticket_by_id,
     get_tickets_by_project,
     get_tickets_by_project_and_no_sprint,
     update_ticket_sync,
 )
-from .repository import delete_ticket as delete_ticket_repository
 
 logger = logging.getLogger(__name__)
 Role = ProjectMembership.Role
@@ -149,8 +148,10 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
 
 async def delete_ticket(ticket: Ticket, requester_id: str) -> None:
     project_id, ticket_id, ticket_key = ticket.project_id, ticket.id, ticket.key #type: ignore
-    await delete_ticket_repository(ticket)
-    await publish_ticket_deleted(project_id, ticket_id, ticket_key, actor_id=requester_id)
+    payload = build_payload('ticket.deleted', project_id=project_id, actor_id=requester_id, ticket_id=ticket_id, ticket_key=ticket_key)
+    def _delete():
+        return delete_ticket_sync(ticket)
+    await awrite_with_outbox(_delete, [('redis_stream', payload)])
 
 async def get_board(project_id: str) -> dict:
     sprint = await get_active_sprint_by_project(project_id)

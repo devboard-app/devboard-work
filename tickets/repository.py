@@ -89,6 +89,9 @@ def update_ticket_sync(ticket: Ticket) -> Ticket:
 async def delete_ticket(ticket: Ticket) -> None:
     await ticket.adelete()
 
+def delete_ticket_sync(ticket: Ticket) -> None:
+    ticket.delete()
+
 async def get_tickets_by_project_and_no_sprint(project_id: str, limit: int, offset: int) -> tuple[list[Ticket], int]:
     return await page(Ticket.objects.filter(project=project_id, sprint__isnull=True).prefetch_related('labels'), limit, offset)
 
