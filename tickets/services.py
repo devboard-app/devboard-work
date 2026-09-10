@@ -1,4 +1,5 @@
 import logging
+import uuid
 
 from django.db import IntegrityError
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
@@ -9,30 +10,24 @@ from tenacity import (
     wait_random_exponential,
 )
 
+from outbox.writer import awrite_with_outbox
 from projects.models import Project, ProjectMembership
 from sprints.repository import get_active_sprint_by_project, get_sprint_tickets
 from work.exceptions import APIException, Conflict
 from work.infrastructure.events import (
-    publish_ticket_assigned,
-    publish_ticket_created,
-    publish_ticket_deleted,
-    publish_ticket_epic_linked,
-    publish_ticket_epic_unlinked,
-    publish_ticket_status_changed,
-    publish_ticket_unassigned,
-    publish_ticket_updated,
+    build_payload,
 )
 
 from .models import Ticket
-from .repository import create_ticket as create_ticket_repository
-from .repository import delete_ticket as delete_ticket_repository
 from .repository import (
+    create_ticket_sync,
+    delete_ticket_sync,
     get_next_ticket_number,
     get_ticket_by_id,
     get_tickets_by_project,
     get_tickets_by_project_and_no_sprint,
+    update_ticket_sync,
 )
-from .repository import update_ticket as update_ticket_repository
 
 logger = logging.getLogger(__name__)
 Role = ProjectMembership.Role
@@ -78,11 +73,18 @@ async def list_project_tickets(project_id: str, limit: int, offset: int) -> tupl
 async def _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date, story_points) -> Ticket:
     ticket_number = await get_next_ticket_number(str(project.id))
     key = f'{project.key}-{ticket_number}'
-    return await create_ticket_repository(
-        title=title, description=description, type=type, priority=priority, status=status,
-        project=project, created_by=created_by, ticket_number=ticket_number, key=key,
-        assignee_id=assignee_id, parent_epic=parent_epic, due_date=due_date, story_points=story_points
-    )
+    ticket_id = uuid.uuid4()
+    events = [('redis_stream', build_payload('ticket.created', project_id=project.id, actor_id=created_by, ticket_id=ticket_id, ticket_key=key, story_points=story_points, status=status))]
+    if assignee_id:
+        events.append(('redis_stream', build_payload('ticket.assigned', project_id=project.id, actor_id=created_by, recipient_id=assignee_id, ticket_id=ticket_id, ticket_key=key)))
+
+    def _create():
+        return create_ticket_sync(
+            id=ticket_id, title=title, description=description, type=type, priority=priority, status=status,
+            project=project, created_by=created_by, ticket_number=ticket_number, key=key,
+            assignee_id=assignee_id, parent_epic=parent_epic, due_date=due_date, story_points=story_points
+        )
+    return await awrite_with_outbox(_create, events)
 
 async def create_ticket(project: Project, created_by: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
     title = data['title']
@@ -103,11 +105,6 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
         logger.exception(f"Could not allocate a ticket number for project {project.key} after 5 attempts")
         raise APIException("Could not allocate a ticket number, please retry.")
         
-    
-    await publish_ticket_created(ticket, actor_id=created_by)
-    if assignee_id:
-        await publish_ticket_assigned(ticket, actor_id=created_by, recipient_id=assignee_id)
-
     return ticket
     
 
@@ -131,20 +128,30 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
         else:
             data['parent_epic'] = None
 
+    old_parent_epic = None
+    if old_snapshot['parent_epic_id'] and data.get('parent_epic') is None and 'parent_epic' in data:
+        old_parent_epic = await get_ticket_by_id(old_snapshot['parent_epic_id'], str(ticket.project_id)) # type: ignore
+
     for key, value in data.items():
         setattr(ticket, key, value)
+
+    events = _build_ticket_update_events(ticket, requester_id, data, old_snapshot, old_parent_epic)
+
+    def _save():
+        return update_ticket_sync(ticket)
     try:
-        await update_ticket_repository(ticket)
+        await awrite_with_outbox(_save, events)
     except IntegrityError:
         raise Conflict('A ticket with this key already exists.')
 
-    await _publish_ticket_update_events(ticket, requester_id, data, old_snapshot)
     return ticket
 
 async def delete_ticket(ticket: Ticket, requester_id: str) -> None:
     project_id, ticket_id, ticket_key = ticket.project_id, ticket.id, ticket.key #type: ignore
-    await delete_ticket_repository(ticket)
-    await publish_ticket_deleted(project_id, ticket_id, ticket_key, actor_id=requester_id)
+    payload = build_payload('ticket.deleted', project_id=project_id, actor_id=requester_id, ticket_id=ticket_id, ticket_key=ticket_key)
+    def _delete():
+        return delete_ticket_sync(ticket)
+    await awrite_with_outbox(_delete, [('redis_stream', payload)])
 
 async def get_board(project_id: str) -> dict:
     sprint = await get_active_sprint_by_project(project_id)
@@ -179,46 +186,46 @@ def _snapshot_ticket(ticket: Ticket) -> dict:
         'story_points': ticket.story_points
     }
 
-async def _publish_ticket_update_events(ticket: Ticket, requester_id: str, data: dict, old: dict) -> None:
+def _build_ticket_update_events(ticket: Ticket, requester_id: str, data: dict, old: dict, old_parent_epic: Ticket | None) -> list[tuple[str, dict]]:
     new_assignee_id = str(data['assignee_id']) if data.get('assignee_id') else None
     new_due_date = data['due_date'].isoformat() if data.get('due_date') else None
     new_parent_epic = data.get('parent_epic')
 
-    try:
-        if 'title' in data and old['title'] != data.get('title'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='title', from_value=old['title'], to_value=data['title'])
+    events: list[tuple[str, dict]] = []
 
-        if 'description' in data and old['description'] != data.get('description'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='description', from_value=old['description'], to_value=data['description'])
+    def add(event, **kwargs):
+        events.append(('redis_stream', build_payload(event, **kwargs)))
 
-        if 'priority' in data and old['priority'] != data.get('priority'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='priority', from_value=old['priority'], to_value=data['priority'])
+    if 'title' in data and old['title'] != data.get('title'):
+        add('ticket.updated', field='title', from_value=old['title'], to_value=data['title'], actor_id=requester_id, ticket_id=ticket.id, ticket_key=ticket.key, project_id=ticket.project_id) # type: ignore
 
-        if 'type' in data and old['type'] != data.get('type'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='type', from_value=old['type'], to_value=data['type'])
+    if 'description' in data and old['description'] != data.get('description'):
+        add('ticket.updated', field='description', from_value=old['description'], to_value=data['description'], actor_id=requester_id, ticket_id=ticket.id, ticket_key=ticket.key, project_id=ticket.project_id) # type: ignore
 
-        if 'due_date' in data and old['due_date'] != new_due_date:
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='due_date', from_value=old['due_date'], to_value=new_due_date)
+    if 'priority' in data and old['priority'] != data.get('priority'):
+        add('ticket.updated', field='priority', from_value=old['priority'], to_value=data['priority'], actor_id=requester_id, ticket_id=ticket.id, ticket_key=ticket.key, project_id=ticket.project_id) # type: ignore
 
-        if 'story_points' in data and old['story_points'] != data.get('story_points'):
-            await publish_ticket_updated(ticket, actor_id=requester_id, field='story_points', from_value=old['story_points'], to_value=data['story_points'])
+    if 'type' in data and old['type'] != data.get('type'):
+        add('ticket.updated', field='type', from_value=old['type'], to_value=data['type'], actor_id=requester_id, ticket_id=ticket.id, ticket_key=ticket.key, project_id=ticket.project_id) # type: ignore
 
-        if new_assignee_id and new_assignee_id != old['assignee_id']:
-            await publish_ticket_assigned(ticket, actor_id=requester_id, recipient_id=new_assignee_id)
+    if 'due_date' in data and old['due_date'] != new_due_date:
+        add('ticket.updated', field='due_date', from_value=old['due_date'], to_value=new_due_date, actor_id=requester_id, ticket_id=ticket.id, ticket_key=ticket.key, project_id=ticket.project_id) # type: ignore
 
-        if 'assignee_id' in data and new_assignee_id is None and old['assignee_id']:
-            await publish_ticket_unassigned(ticket, actor_id=requester_id, previous_assignee_id=old['assignee_id'])
+    if 'story_points' in data and old['story_points'] != data.get('story_points'):
+        add('ticket.updated', field='story_points', from_value=old['story_points'], to_value=data['story_points'], actor_id=requester_id, ticket_id=ticket.id, ticket_key=ticket.key, project_id=ticket.project_id) # type: ignore
 
-        if 'status' in data and data['status'] != old['status']:
-            await publish_ticket_status_changed(ticket, actor_id=requester_id, recipient_id=str(ticket.assignee_id) if ticket.assignee_id else None, from_status=old['status'], to_status=ticket.status)
+    if new_assignee_id and new_assignee_id != old['assignee_id']:
+        add('ticket.assigned', project_id=ticket.project_id, actor_id=requester_id, recipient_id=new_assignee_id, ticket_id=ticket.id, ticket_key=ticket.key) # type: ignore
 
-        if new_parent_epic and str(new_parent_epic.id) != old['parent_epic_id']:
-            await publish_ticket_epic_linked(ticket, actor_id=requester_id, epic_id=str(new_parent_epic.id), epic_key=new_parent_epic.key)
+    if 'assignee_id' in data and new_assignee_id is None and old['assignee_id']:
+        add('ticket.unassigned', project_id=ticket.project_id, actor_id=requester_id, previous_assignee_id=old['assignee_id'], ticket_id=ticket.id, ticket_key=ticket.key) # type: ignore
 
-        if old['parent_epic_id'] and new_parent_epic is None and 'parent_epic' in data:
-            old_parent_epic = await get_ticket_by_id(old['parent_epic_id'], str(ticket.project_id)) #type: ignore
-            if old_parent_epic:
-                await publish_ticket_epic_unlinked(ticket, actor_id=requester_id, epic_id=old['parent_epic_id'], epic_key=old_parent_epic.key)
+    if 'status' in data and data['status'] != old['status']:
+        add('ticket.status_changed', project_id=ticket.project_id, actor_id=requester_id, recipient_id=str(ticket.assignee_id) if ticket.assignee_id else None, ticket_id=ticket.id, ticket_key=ticket.key, from_status=old['status'], to_status=ticket.status) # type: ignore
 
-    except Exception:
-        logger.exception(f"Failed to publish update events for ticket {ticket.key}")
+    if new_parent_epic and str(new_parent_epic.id) != old['parent_epic_id']:
+        add('ticket.epic_linked', project_id=ticket.project_id, actor_id=requester_id, ticket_id=ticket.id, ticket_key=ticket.key, epic_id=str(new_parent_epic.id), epic_key=new_parent_epic.key) # type: ignore
+    if old_parent_epic:
+        add('ticket.epic_unlinked', project_id=ticket.project_id, actor_id=requester_id, ticket_id=ticket.id, ticket_key=ticket.key, epic_id=old['parent_epic_id'], epic_key=old_parent_epic.key) # type: ignore
+
+    return events

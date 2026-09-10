@@ -3,12 +3,10 @@ import logging
 from rest_framework import status
 from rest_framework.response import Response
 
-from work.exceptions import ServiceUnavailable
 from work.pagination import get_limit_offset, paginated
 from work.serializers import validated
 from work.views import AsyncAPIView
 
-from .infrastructure import send_member_notification
 from .models import TeamMembership
 from .permissions import require_team_role
 from .serializers import (
@@ -89,11 +87,7 @@ class TeamMemberListAddView(AsyncAPIView):
         team = await get_team_or_404(str(pk))
         requester_membership = await require_team_role(request.user.user_id, str(pk), Role.OWNER, Role.ADMIN)
         data = validated(TeamMemberInputSerializer, request.data)
-        membership = await add_member(team, requester_membership.role, data['email'], data['role']) 
-        try:
-            await send_member_notification(data['email'], team.name, request.user.email)
-        except ServiceUnavailable: 
-            logger.exception('Failed to send invitation email.')
+        membership = await add_member(team, requester_membership.role, data['email'], data['role'], request.user.email)
         serializer = TeamMembershipSerializer(membership)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 

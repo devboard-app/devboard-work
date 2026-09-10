@@ -1,21 +1,22 @@
 from django.db import IntegrityError
 from rest_framework.exceptions import NotFound, PermissionDenied
 
+from outbox.writer import awrite_with_outbox
 from tickets.models import Ticket
 from tickets.services import can_edit_ticket
 from work.exceptions import Conflict
-from work.infrastructure.events import publish_label_applied, publish_label_removed
+from work.infrastructure.events import build_payload
 
 from .models import Label
 from .repository import (
-    add_label_to_ticket,
+    add_label_to_ticket_sync,
     get_label_by_id,
     get_labels_by_project,
+    remove_label_from_ticket_sync,
 )
 from .repository import create_label as create_label_repository
 from .repository import delete_label as delete_label_repository
 from .repository import get_ticket_labels as get_ticket_labels_repository
-from .repository import remove_label_from_ticket as remove_label_from_ticket_repository
 from .repository import update_label as update_label_repository
 
 
@@ -49,15 +50,21 @@ async def delete_label(label: Label) -> None:
 async def apply_label_to_ticket(ticket: Ticket, label: Label, requester_id: str, requester_role: str) -> None:
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket')
-    await add_label_to_ticket(ticket, label)
-    await publish_label_applied(ticket, label, actor_id=requester_id)
+    payload = build_payload('label.applied', project_id=ticket.project_id, actor_id=requester_id, ticket_id=ticket.id, ticket_key=ticket.key, label_id=label.id, label_name=label.name) # type: ignore
+    
+    def _apply():
+        return add_label_to_ticket_sync(ticket, label)
+    await awrite_with_outbox(_apply, [('redis_stream', payload)])
     
 
 async def remove_label_from_ticket(ticket: Ticket, label: Label, requester_id: str, requester_role: str) -> None:
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket')
-    await remove_label_from_ticket_repository(ticket, label)
-    await publish_label_removed(ticket, label, actor_id=requester_id)
+    payload = build_payload('label.removed', project_id=ticket.project_id, actor_id=requester_id, ticket_id=ticket.id, ticket_key=ticket.key, label_id=label.id, label_name=label.name) # type: ignore
+
+    def _remove():
+        return remove_label_from_ticket_sync(ticket, label)
+    await awrite_with_outbox(_remove, [('redis_stream', payload)])
     
 async def get_ticket_labels(ticket: Ticket, limit: int, offset: int) -> tuple[list[Label], int]:
     return await get_ticket_labels_repository(ticket, limit, offset)

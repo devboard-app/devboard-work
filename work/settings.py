@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'labels',
     'sprints',
     'comments',
+    'outbox',
 ]
 
 MIDDLEWARE = [

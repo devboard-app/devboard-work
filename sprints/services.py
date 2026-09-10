@@ -1,16 +1,12 @@
 from django.db import IntegrityError
 from rest_framework.exceptions import NotFound, ValidationError
 
+from outbox.writer import awrite_with_outbox
 from projects.models import Project
 from tickets.models import Ticket
-from tickets.repository import update_ticket
+from tickets.repository import update_ticket_sync
 from work.exceptions import Conflict
-from work.infrastructure.events import (
-    publish_sprint_completed,
-    publish_sprint_started,
-    publish_ticket_added_to_sprint,
-    publish_ticket_removed_from_sprint,
-)
+from work.infrastructure.events import build_payload
 
 from .models import Sprint
 from .repository import create_sprint as create_sprint_repository
@@ -20,8 +16,9 @@ from .repository import (
     get_sprint_by_id,
     get_sprint_tickets_page,
     get_sprints_by_project,
-    move_unfinished_tickets_to_backlog,
+    move_unfinished_tickets_to_backlog_sync,
     sprint_has_tickets,
+    update_sprint_sync,
 )
 from .repository import update_sprint as update_sprint_repository
 
@@ -59,22 +56,28 @@ async def start_sprint(sprint: Sprint, project_id: str, team_id: str, actor_id: 
     if not await sprint_has_tickets(sprint):
         raise Conflict('Sprint must have at least one ticket.')
     sprint.status = Sprint.Status.ACTIVE
+    payload = build_payload('sprint.started', team_id=team_id, actor_id=actor_id, sprint_id=sprint.id, sprint_name=sprint.name, project_id=sprint.project_id, # type: ignore
+                            start_date=sprint.start_date.isoformat() if sprint.start_date else None, end_date=sprint.end_date.isoformat() if sprint.end_date else None)
+    def _save():
+        return update_sprint_sync(sprint)
     try:
-        sprint = await update_sprint_repository(sprint)
+        sprint = await awrite_with_outbox(_save, [('redis_stream', payload)])
     except IntegrityError:
         raise Conflict("There\'s already an active Sprint.")
-    await publish_sprint_started(sprint, team_id=team_id, actor_id=actor_id)
 
     return sprint
 
 async def complete_sprint(sprint: Sprint, team_id: str, actor_id: str) -> Sprint:
     if sprint.status != Sprint.Status.ACTIVE:
         raise Conflict('You can only complete Active sprints.')
-    await move_unfinished_tickets_to_backlog(sprint)
     sprint.status = Sprint.Status.COMPLETED
-    sprint = await update_sprint_repository(sprint)
-    await publish_sprint_completed(sprint, team_id=team_id, actor_id=actor_id)
-
+    payload = build_payload('sprint.completed', team_id=team_id, actor_id=actor_id, sprint_id=sprint.id, sprint_name=sprint.name, project_id=sprint.project_id, # type: ignore
+                            start_date=sprint.start_date.isoformat() if sprint.start_date else None, end_date=sprint.end_date.isoformat() if sprint.end_date else None)
+    def _complete():
+        move_unfinished_tickets_to_backlog_sync(sprint)
+        return update_sprint_sync(sprint)
+    
+    sprint = await awrite_with_outbox(_complete, [('redis_stream', payload)])
     return sprint
 
 async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket, actor_id: str) -> None:
@@ -85,13 +88,18 @@ async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket, actor_id: str) ->
     if ticket.sprint_id is not None: #type: ignore
         raise Conflict('Ticket is already on another sprint.')
     ticket.sprint = sprint #type: ignore
-    await update_ticket(ticket)
-    await publish_ticket_added_to_sprint(ticket=ticket, actor_id=actor_id, sprint=sprint)
+    payload = build_payload('ticket.sprint_added', project_id=ticket.project_id, actor_id=actor_id, ticket_id=ticket.id, ticket_key=ticket.key, sprint_id=sprint.id, sprint_name=sprint.name) # type: ignore
+
+    def _save():
+        return update_ticket_sync(ticket)
+    await awrite_with_outbox(_save, [('redis_stream', payload)])
 
 async def remove_ticket_from_sprint(ticket: Ticket, sprint: Sprint, actor_id: str) -> None:
     ticket.sprint = None
-    await update_ticket(ticket)
-    await publish_ticket_removed_from_sprint(ticket=ticket, actor_id=actor_id, sprint=sprint)
+    payload = build_payload('ticket.sprint_removed', project_id=ticket.project_id, actor_id=actor_id, ticket_id=ticket.id, ticket_key=ticket.key, sprint_id=sprint.id, sprint_name=sprint.name) # type: ignore
+    def _save():
+        return update_ticket_sync(ticket)
+    await awrite_with_outbox(_save, [('redis_stream', payload)])
 
 async def list_sprint_tickets(sprint: Sprint, limit: int, offset: int) -> tuple[list[Ticket], int]:
     return await get_sprint_tickets_page(sprint, limit, offset)

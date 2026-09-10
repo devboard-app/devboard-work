@@ -28,6 +28,10 @@ async def update_sprint(sprint: Sprint) -> Sprint:
     await sprint.asave()
     return sprint
 
+def update_sprint_sync(sprint: Sprint) -> Sprint:
+    sprint.save()
+    return sprint
+
 async def delete_sprint(sprint: Sprint) -> None:
     await sprint.adelete()
 
@@ -42,3 +46,7 @@ async def get_sprint_tickets_page(sprint: Sprint, limit: int, offset: int) -> tu
 
 async def move_unfinished_tickets_to_backlog(sprint: Sprint) -> None:
     await Ticket.objects.filter(sprint=sprint).exclude(status=Ticket.Status.DONE).aupdate(sprint=None, status=Ticket.Status.BACKLOG)
+
+def move_unfinished_tickets_to_backlog_sync(sprint: Sprint) -> None:
+    Ticket.objects.filter(sprint=sprint).exclude(status=Ticket.Status.DONE).update(sprint=None, status=Ticket.Status.BACKLOG)
+    
