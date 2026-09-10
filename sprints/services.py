@@ -16,7 +16,7 @@ from .repository import (
     get_sprint_by_id,
     get_sprint_tickets_page,
     get_sprints_by_project,
-    move_unfinished_tickets_to_backlog,
+    move_unfinished_tickets_to_backlog_sync,
     sprint_has_tickets,
     update_sprint_sync,
 )
@@ -70,15 +70,14 @@ async def start_sprint(sprint: Sprint, project_id: str, team_id: str, actor_id: 
 async def complete_sprint(sprint: Sprint, team_id: str, actor_id: str) -> Sprint:
     if sprint.status != Sprint.Status.ACTIVE:
         raise Conflict('You can only complete Active sprints.')
-    await move_unfinished_tickets_to_backlog(sprint)
     sprint.status = Sprint.Status.COMPLETED
     payload = build_payload('sprint.completed', team_id=team_id, actor_id=actor_id, sprint_id=sprint.id, sprint_name=sprint.name, project_id=sprint.project_id, # type: ignore
                             start_date=sprint.start_date.isoformat() if sprint.start_date else None, end_date=sprint.end_date.isoformat() if sprint.end_date else None)
     def _complete():
+        move_unfinished_tickets_to_backlog_sync(sprint)
         return update_sprint_sync(sprint)
     
     sprint = await awrite_with_outbox(_complete, [('redis_stream', payload)])
-
     return sprint
 
 async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket, actor_id: str) -> None:
