@@ -2,6 +2,7 @@ from datetime import date
 
 from projects.models import Project
 from tickets.models import Ticket
+from tickets.repository import apply_ticket_filters
 from work.pagination import page
 
 from .models import Sprint
@@ -35,8 +36,9 @@ def update_sprint_sync(sprint: Sprint) -> Sprint:
 async def delete_sprint(sprint: Sprint) -> None:
     await sprint.adelete()
 
-async def get_sprint_tickets(sprint: Sprint) -> list[Ticket]:
-    return [m async for m in Ticket.objects.filter(sprint=sprint).prefetch_related('labels')]
+async def get_sprint_tickets(sprint: Sprint, filters : dict | None = None) -> list[Ticket]:
+    qs = apply_ticket_filters(Ticket.objects.filter(sprint=sprint).prefetch_related('labels'), filters or {})
+    return [m async for m in qs]
 
 async def sprint_has_tickets(sprint: Sprint) -> bool:
     return await Ticket.objects.filter(sprint=sprint).aexists()

@@ -9,8 +9,9 @@ from .models import Ticket
 async def get_ticket_by_id(ticket_id: str, project_id: str) -> Ticket | None:
     return await Ticket.objects.filter(id=ticket_id, project_id=project_id).prefetch_related('labels').afirst()
 
-async def get_tickets_by_project(project_id: str, limit: int, offset: int) -> tuple[list[Ticket], int]:
-    return await page(Ticket.objects.filter(project=project_id), limit, offset)
+async def get_tickets_by_project(project_id: str, limit: int, offset: int, filters: dict | None = None) -> tuple[list[Ticket], int]:
+    qs = apply_ticket_filters(Ticket.objects.filter(project=project_id), filters or {})
+    return await page(qs, limit, offset)
 
 async def get_next_ticket_number(project_id: str) -> int:
     result = await Ticket.objects.filter(project=project_id).aaggregate(max_number=Max('ticket_number'))
@@ -92,8 +93,20 @@ async def delete_ticket(ticket: Ticket) -> None:
 def delete_ticket_sync(ticket: Ticket) -> None:
     ticket.delete()
 
-async def get_tickets_by_project_and_no_sprint(project_id: str, limit: int, offset: int) -> tuple[list[Ticket], int]:
-    return await page(Ticket.objects.filter(project=project_id, sprint__isnull=True).prefetch_related('labels'), limit, offset)
+async def get_tickets_by_project_and_no_sprint(project_id: str, limit: int, offset: int, filters: dict | None = None) -> tuple[list[Ticket], int]:
+    qs = apply_ticket_filters(Ticket.objects.filter(project=project_id, sprint__isnull=True).prefetch_related('labels'), filters or {})
+    return await page(qs, limit, offset)
 
 async def get_ticket_by_key(project_id: str, key: str) -> Ticket | None:
     return await Ticket.objects.filter(project_id=project_id, key=key).afirst()
+
+def apply_ticket_filters(qs, filters: dict):
+    if 'assignee' in filters:
+        qs = qs.filter(assignee_id=filters['assignee'])
+    if 'priority' in filters:
+        qs = qs.filter(priority=filters['priority'])
+    if 'type' in filters:
+        qs = qs.filter(type=filters['type'])
+    if 'label' in filters:
+        qs = qs.filter(labels__id=filters['label'])
+    return qs

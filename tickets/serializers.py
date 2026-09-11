@@ -35,3 +35,9 @@ class TicketInputSerializer(serializers.Serializer):
         if not attrs:
             raise serializers.ValidationError('No fields to update.')
         return attrs
+
+class TicketFilterSerializer(serializers.Serializer):
+    assignee = serializers.UUIDField(required=False)
+    priority = serializers.ChoiceField(choices=Ticket.Priority.choices, required=False)
+    type = serializers.ChoiceField(choices=Ticket.Type.choices, required=False)
+    label = serializers.UUIDField(required=False)
