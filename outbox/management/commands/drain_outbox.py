@@ -22,11 +22,18 @@ class Command(BaseCommand):
         logger.info("Outbox relay started.")
 
         while True:
-            rows = list(
-                OutboxEvent.objects.filter(delivered_at__isnull=True)
-                .order_by("created_at")[:BATCH_SIZE]
-            )
+            try:
+                rows = list(
+                    OutboxEvent.objects.filter(delivered_at__isnull=True, attempts__lt=MAX_ATTEMPTS)
+                    .order_by("created_at")[:BATCH_SIZE]
+                )
+            except Exception:
+                logger.exception("Outbox query failed, will retry next poll")
+                time.sleep(POLL_INTERVAL_SECONDS)
+                continue
+
             for row in rows:
+                rows.sort(key=lambda r: r.channel != OutboxEvent.Channel.REDIS_STREAM) # redis_stream rows go first 
                 try:
                     dispatch(row.channel, row.payload)
                     row.delivered_at = timezone.now()
@@ -34,8 +41,8 @@ class Command(BaseCommand):
                 except Exception:
                     row.attempts += 1
                     row.save(update_fields=["attempts"])
-                    logger.warning(
-                        f"Outbox delivery failed for {row.id} (attempt {row.attempts})",
-                        exc_info=True,
-                    )
+                    if row.attempts >= MAX_ATTEMPTS:
+                        logger.warning(f"Outbox delivery failed for {row.id} (attempt {row.attempts})", exc_info=True)
+                    else:
+                        logger.warning(f"Outbox delivery failed for {row.id} (attempt {row.attempts})", exc_info=True)
             time.sleep(POLL_INTERVAL_SECONDS)
