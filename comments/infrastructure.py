@@ -17,13 +17,7 @@ logger = logging.getLogger(__name__)
 MAX_BATCH_SIZE = 100
 ATTEMPT_TIMEOUT = 2.0
 
-@retry(
-    retry=retry_if_exception_type((httpx.TransportError, httpx.HTTPStatusError)),
-    stop=(stop_after_attempt(3) | stop_after_delay(5)),
-    wait=wait_random_exponential(multiplier=0.1, max=1.0),
-    reraise=True
-)
-async def _attachments_batch(payload: dict) -> list[dict]:
+async def _attachments_batch_request(payload: dict) -> list[dict]:
     async with httpx.AsyncClient(timeout=ATTEMPT_TIMEOUT) as client:
         response = await client.post(
             f'{settings.ATTACHMENTS_SERVICE_URL}/internal/attachments/batch',
@@ -33,6 +27,25 @@ async def _attachments_batch(payload: dict) -> list[dict]:
     response.raise_for_status()
     return response.json()
 
+
+@retry(
+    retry=retry_if_exception_type(httpx.TransportError),
+    stop=stop_after_attempt(3),
+    wait=wait_random_exponential(multiplier=0.1, max=1.0),
+    reraise=True
+)
+async def _attachments_batch(payload: dict) -> list[dict]:
+    return await _attachments_batch_request(payload)
+
+
+@retry(
+    retry=retry_if_exception_type((httpx.TransportError, httpx.HTTPStatusError)),
+    stop=(stop_after_attempt(3) | stop_after_delay(5)),
+    wait=wait_random_exponential(multiplier=0.1, max=1.0),
+    reraise=True
+)
+async def _attachments_batch_verified(payload: dict) -> list[dict]:
+    return await _attachments_batch_request(payload)
 
 async def resolve_attachments(attachment_ids: list[str]) -> dict[str, dict]:
     if not attachment_ids:
@@ -62,7 +75,7 @@ async def resolve_usernames(usernames: list[str]) -> dict[str, str]:
 
 async def verify_attachments(attachment_ids: list[str], owner_id: str) -> set[str]:
     try:
-        items = await _attachments_batch({
+        items = await _attachments_batch_verified({
             'attachment_ids': attachment_ids[:MAX_BATCH_SIZE],
             'owner_id': owner_id,
         })
