@@ -31,8 +31,9 @@ class Command(BaseCommand):
                 logger.exception("Outbox query failed, will retry next poll")
                 time.sleep(POLL_INTERVAL_SECONDS)
                 continue
-            
+
             for row in rows:
+                rows.sort(key=lambda r: r.channel != OutboxEvent.Channel.REDIS_STREAM) # redis_stream rows go first 
                 try:
                     dispatch(row.channel, row.payload)
                     row.delivered_at = timezone.now()
