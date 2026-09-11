@@ -22,10 +22,16 @@ class Command(BaseCommand):
         logger.info("Outbox relay started.")
 
         while True:
-            rows = list(
-                OutboxEvent.objects.filter(delivered_at__isnull=True, attempts__lt=MAX_ATTEMPTS)
-                .order_by("created_at")[:BATCH_SIZE]
-            )
+            try:
+                rows = list(
+                    OutboxEvent.objects.filter(delivered_at__isnull=True, attempts__lt=MAX_ATTEMPTS)
+                    .order_by("created_at")[:BATCH_SIZE]
+                )
+            except Exception:
+                logger.exception("Outbox query failed, will retry next poll")
+                time.sleep(POLL_INTERVAL_SECONDS)
+                continue
+            
             for row in rows:
                 try:
                     dispatch(row.channel, row.payload)
