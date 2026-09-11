@@ -10,7 +10,12 @@ from work.serializers import validated
 from work.views import AsyncAPIView
 
 from .permissions import require_project_role, require_team_role
-from .serializers import TicketInputSerializer, TicketListSerializer, TicketSerializer, TicketFilterSerializer
+from .serializers import (
+    TicketFilterSerializer,
+    TicketInputSerializer,
+    TicketListSerializer,
+    TicketSerializer,
+)
 from .services import (
     create_ticket,
     delete_ticket,
