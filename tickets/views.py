@@ -10,7 +10,7 @@ from work.serializers import validated
 from work.views import AsyncAPIView
 
 from .permissions import require_project_role, require_team_role
-from .serializers import TicketInputSerializer, TicketListSerializer, TicketSerializer
+from .serializers import TicketInputSerializer, TicketListSerializer, TicketSerializer, TicketFilterSerializer
 from .services import (
     create_ticket,
     delete_ticket,
@@ -29,7 +29,8 @@ class TicketListCreateView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         limit, offset = get_limit_offset(request)
-        tickets, total = await list_project_tickets(project_id, limit, offset)
+        filters = validated(TicketFilterSerializer, request.query_params)
+        tickets, total = await list_project_tickets(project_id, limit, offset, filters)
         serializer = TicketListSerializer(tickets, many=True)
         return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
 
@@ -72,7 +73,8 @@ class BoardView(AsyncAPIView):
     async def get(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
-        result = await get_board(str(project_id))
+        filters = validated(TicketFilterSerializer, request.query_params)
+        result = await get_board(str(project_id), filters)
         if result['sprint'] is None:
             return Response(result, status=status.HTTP_200_OK)
         serialized_sprint = SprintListSerializer(result['sprint']).data
@@ -91,6 +93,7 @@ class BacklogView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         limit, offset =  get_limit_offset(request)
-        tickets, total = await get_backlog(str(project_id), limit, offset)
+        filters = validated(TicketFilterSerializer, request.query_params)
+        tickets, total = await get_backlog(str(project_id), limit, offset, filters)
         serializer = TicketSerializer(tickets, many=True)
         return Response(paginated(serializer.data, total, limit, offset), status=status.HTTP_200_OK)
