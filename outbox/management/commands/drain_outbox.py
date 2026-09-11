@@ -23,7 +23,7 @@ class Command(BaseCommand):
 
         while True:
             rows = list(
-                OutboxEvent.objects.filter(delivered_at__isnull=True)
+                OutboxEvent.objects.filter(delivered_at__isnull=True, attempts__lt=MAX_ATTEMPTS)
                 .order_by("created_at")[:BATCH_SIZE]
             )
             for row in rows:
@@ -34,8 +34,8 @@ class Command(BaseCommand):
                 except Exception:
                     row.attempts += 1
                     row.save(update_fields=["attempts"])
-                    logger.warning(
-                        f"Outbox delivery failed for {row.id} (attempt {row.attempts})",
-                        exc_info=True,
-                    )
+                    if row.attempts >= MAX_ATTEMPTS:
+                        logger.warning(f"Outbox delivery failed for {row.id} (attempt {row.attempts})", exc_info=True)
+                    else:
+                        logger.warning(f"Outbox delivery failed for {row.id} (attempt {row.attempts})", exc_info=True)
             time.sleep(POLL_INTERVAL_SECONDS)
