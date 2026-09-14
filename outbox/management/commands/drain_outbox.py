@@ -32,8 +32,8 @@ class Command(BaseCommand):
                 time.sleep(POLL_INTERVAL_SECONDS)
                 continue
 
+            rows.sort(key=lambda r: r.channel != OutboxEvent.Channel.REDIS_STREAM) # redis_stream rows go first 
             for row in rows:
-                rows.sort(key=lambda r: r.channel != OutboxEvent.Channel.REDIS_STREAM) # redis_stream rows go first 
                 try:
                     dispatch(row.channel, row.payload)
                     row.delivered_at = timezone.now()
