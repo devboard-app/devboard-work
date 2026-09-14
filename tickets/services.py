@@ -71,13 +71,13 @@ async def list_project_tickets(project_id: str, limit: int, offset: int, filters
     return await get_tickets_by_project(project_id, limit, offset, filters)
 
 @retry(retry = retry_if_exception_type(IntegrityError), stop=stop_after_attempt(5), wait=wait_random_exponential(multiplier=0.05, max=0.5), reraise=True)
-async def _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date, story_points) -> Ticket:
+async def _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date, story_points, team_id) -> Ticket:
     ticket_number = await get_next_ticket_number(str(project.id))
     key = f'{project.key}-{ticket_number}'
     ticket_id = uuid.uuid4()
-    events = [('redis_stream', build_payload('ticket.created', project_id=project.id, actor_id=created_by, ticket_id=ticket_id, ticket_key=key, story_points=story_points, status=status))]
+    events = [('redis_stream', build_payload('ticket.created', team_id=team_id, project_id=project.id, actor_id=created_by, ticket_id=ticket_id, ticket_key=key, story_points=story_points, status=status))]
     if assignee_id:
-        events.append(('redis_stream', build_payload('ticket.assigned', project_id=project.id, actor_id=created_by, recipient_id=assignee_id, ticket_id=ticket_id, ticket_key=key)))
+        events.append(('redis_stream', build_payload('ticket.assigned', team_id=team_id, project_id=project.id, actor_id=created_by, recipient_id=assignee_id, ticket_id=ticket_id, ticket_key=key)))
 
     def _create():
         return create_ticket_sync(
@@ -87,7 +87,7 @@ async def _create_ticket_with_number(project, title, description, type, priority
         )
     return await awrite_with_outbox(_create, events)
 
-async def create_ticket(project: Project, created_by: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
+async def create_ticket(project: Project, created_by: str, requester_role: ProjectMembership.Role, data: dict, team_id: str) -> Ticket:
     title = data['title']
     type = data['type']
     description = data['description']
@@ -103,7 +103,7 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
     if assignee_id and await get_project_membership(str(assignee_id), str(project.id)) is None:
         raise ValidationError('Asignee must be a member of this project.')
     try:
-        ticket = await _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date, story_points)
+        ticket = await _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date, story_points, team_id)
     except IntegrityError:
         logger.exception(f"Could not allocate a ticket number for project {project.key} after 5 attempts")
         raise APIException("Could not allocate a ticket number, please retry.")
@@ -111,7 +111,7 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
     return ticket
     
 
-async def update_ticket(ticket: Ticket, requester_id: str, requester_role: ProjectMembership.Role, data: dict) -> Ticket:
+async def update_ticket(ticket: Ticket, requester_id: str, requester_role: ProjectMembership.Role, data: dict, team_id: str) -> Ticket:
     if not can_edit_ticket(ticket, requester_id, requester_role):
         raise PermissionDenied('You cannot edit this ticket') 
     if 'assignee_id' in data and str(data['assignee_id']) != requester_id and not can_assign_ticket(requester_role):
@@ -141,7 +141,7 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
     for key, value in data.items():
         setattr(ticket, key, value)
 
-    events = _build_ticket_update_events(ticket, requester_id, data, old_snapshot, old_parent_epic)
+    events = _build_ticket_update_events(ticket, requester_id, data, old_snapshot, old_parent_epic, team_id)
 
     def _save():
         return update_ticket_sync(ticket)
@@ -152,9 +152,9 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
 
     return ticket
 
-async def delete_ticket(ticket: Ticket, requester_id: str) -> None:
+async def delete_ticket(ticket: Ticket, requester_id: str, team_id: str) -> None:
     project_id, ticket_id, ticket_key = ticket.project_id, ticket.id, ticket.key #type: ignore
-    payload = build_payload('ticket.deleted', project_id=project_id, actor_id=requester_id, ticket_id=ticket_id, ticket_key=ticket_key)
+    payload = build_payload('ticket.deleted', team_id=team_id, project_id=project_id, actor_id=requester_id, ticket_id=ticket_id, ticket_key=ticket_key)
     def _delete():
         return delete_ticket_sync(ticket)
     await awrite_with_outbox(_delete, [('redis_stream', payload)])
@@ -192,7 +192,7 @@ def _snapshot_ticket(ticket: Ticket) -> dict:
         'story_points': ticket.story_points
     }
 
-def _build_ticket_update_events(ticket: Ticket, requester_id: str, data: dict, old: dict, old_parent_epic: Ticket | None) -> list[tuple[str, dict]]:
+def _build_ticket_update_events(ticket: Ticket, requester_id: str, data: dict, old: dict, old_parent_epic: Ticket | None, team_id: str) -> list[tuple[str, dict]]:
     new_assignee_id = str(data['assignee_id']) if data.get('assignee_id') else None
     new_due_date = data['due_date'].isoformat() if data.get('due_date') else None
     new_parent_epic = data.get('parent_epic')
@@ -200,7 +200,7 @@ def _build_ticket_update_events(ticket: Ticket, requester_id: str, data: dict, o
     events: list[tuple[str, dict]] = []
 
     def add(event, **kwargs):
-        events.append(('redis_stream', build_payload(event, **kwargs)))
+        events.append(('redis_stream', build_payload(event, team_id=team_id, **kwargs)))
 
     if 'title' in data and old['title'] != data.get('title'):
         add('ticket.updated', field='title', from_value=old['title'], to_value=data['title'], actor_id=requester_id, ticket_id=ticket.id, ticket_key=ticket.key, project_id=ticket.project_id) # type: ignore
