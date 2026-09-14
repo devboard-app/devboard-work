@@ -12,6 +12,7 @@ from tenacity import (
 
 from outbox.writer import awrite_with_outbox
 from projects.models import Project, ProjectMembership
+from projects.repository import get_project_membership
 from sprints.repository import get_active_sprint_by_project, get_sprint_tickets
 from work.exceptions import APIException, Conflict
 from work.infrastructure.events import (
@@ -99,6 +100,8 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
 
     parent_epic = await _validate_epic_rules(ticket_type=type, project_id=str(project.id), requester_role=requester_role, assignee_id=assignee_id, parent_epic_id=parent_epic_id)
 
+    if assignee_id and await get_project_membership(str(assignee_id), str(project.id)) is None:
+        raise ValidationError('Asignee must be a member of this project.')
     try:
         ticket = await _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date, story_points)
     except IntegrityError:
@@ -114,6 +117,9 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
     if 'assignee_id' in data and str(data['assignee_id']) != requester_id and not can_assign_ticket(requester_role):
         raise PermissionDenied('Only Project Lead can assign tickets to others.')
 
+    if data.get('asignee_id') and await get_project_membership(str(data['assignee_id']), str(ticket.project_id)) is None: #type: ignore
+        raise ValidationError('Asignee must be a member of this project.')
+    
     old_snapshot= _snapshot_ticket(ticket)
 
     if 'parent_epic' in data:
