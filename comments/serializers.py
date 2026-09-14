@@ -27,3 +27,7 @@ class CommentInputSerializer(serializers.Serializer):
         child=serializers.UUIDField(), max_length=MAX_ATTACHMENTS,
         required=False, default=list,
     )
+
+class CommentUpdateInputSerializer(serializers.Serializer):
+    body = serializers.CharField(trim_whitespace=True, allow_blank=False)
+    

@@ -11,7 +11,11 @@ from work.serializers import validated
 from work.views import AsyncAPIView
 
 from .infrastructure import resolve_attachments
-from .serializers import CommentInputSerializer, CommentSerializer
+from .serializers import (
+    CommentInputSerializer,
+    CommentSerializer,
+    CommentUpdateInputSerializer,
+)
 from .services import create_comment as create_comment_service
 from .services import delete_comment as delete_comment_service
 from .services import get_comment_or_404, list_ticket_comments
@@ -50,7 +54,7 @@ class CommentDetailView(AsyncAPIView):
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         ticket = await get_ticket_or_404(ticket_id, project_id)
         comment = await get_comment_or_404(comment_id, ticket_id)
-        data = validated(CommentInputSerializer, request.data)
+        data = validated(CommentUpdateInputSerializer, request.data)
         updated = await update_comment_service(comment, ticket, request.user.user_id, data)
         resolved = await resolve_attachments([str(i) for i in updated.attachment_ids])
         serializer = CommentSerializer(updated, context={'resolved_attachments': resolved})
