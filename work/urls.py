@@ -17,7 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
-from projects.internal_view import InternalProjectCheckView
+from projects.internal_view import (
+    InternalProjectCheckView,
+    InternalProjectTeamCheckView,
+)
 from teams.internal_views import InternalTeamCheckView
 from tickets.internal_views import InternalTicketByKeyView
 
@@ -25,6 +28,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/teams/', include('teams.urls')),
     path('api/internal/teams/<uuid:team_id>/members/<uuid:user_id>/', InternalTeamCheckView.as_view(), name='internal-team-check'),
+    path('api/internal/teams/<uuid:team_id>/projects/<uuid:project_id>/', InternalProjectTeamCheckView.as_view(), name='internal-project-team-check'),
     path('api/internal/projects/<uuid:project_id>/tickets/<str:key>/', InternalTicketByKeyView.as_view(), name='internal-ticket-by-key'),
     path('api/internal/projects/<uuid:project_id>/members/<uuid:user_id>/', InternalProjectCheckView.as_view(), name='internal-project-check'),
 ]
