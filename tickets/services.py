@@ -117,7 +117,7 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
     if 'assignee_id' in data and str(data['assignee_id']) != requester_id and not can_assign_ticket(requester_role):
         raise PermissionDenied('Only Project Lead can assign tickets to others.')
 
-    if data.get('asignee_id') and await get_project_membership(str(data['assignee_id']), str(ticket.project_id)) is None: #type: ignore
+    if data.get('assignee_id') and await get_project_membership(str(data['assignee_id']), str(ticket.project_id)) is None: #type: ignore
         raise ValidationError('Asignee must be a member of this project.')
     
     old_snapshot= _snapshot_ticket(ticket)
