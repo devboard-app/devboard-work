@@ -43,7 +43,7 @@ class TicketListCreateView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         membership = await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         data = validated(TicketInputSerializer, request.data)
-        ticket = await create_ticket(await get_project_or_404(project_id, team_id), request.user.user_id, ProjectMembership.Role(membership.role), data)
+        ticket = await create_ticket(await get_project_or_404(project_id, team_id), request.user.user_id, ProjectMembership.Role(membership.role), data, team_id)
         ticket = await get_ticket_or_404(str(ticket.id), project_id)
         serializer = TicketSerializer(ticket)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -62,7 +62,7 @@ class TicketDetailView(AsyncAPIView):
         membership = await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
         ticket = await get_ticket_or_404(ticket_id, project_id)
         data = validated(TicketInputSerializer, request.data, partial=True)
-        updated_ticket = await update_ticket(ticket, request.user.user_id, ProjectMembership.Role(membership.role), data)
+        updated_ticket = await update_ticket(ticket, request.user.user_id, ProjectMembership.Role(membership.role), data, team_id)
         serializer = TicketSerializer(updated_ticket)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -70,7 +70,7 @@ class TicketDetailView(AsyncAPIView):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
         ticket = await get_ticket_or_404(ticket_id, project_id)
-        await delete_ticket(ticket, request.user.user_id)
+        await delete_ticket(ticket, request.user.user_id, team_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 class BoardView(AsyncAPIView):

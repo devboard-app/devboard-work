@@ -52,7 +52,7 @@ async def get_comment_or_404(comment_id: str, ticket_id: str) -> Comment:
         raise NotFound('Comment not found.')
     return comment
 
-async def create_comment(ticket: Ticket, requester_id: str, data: dict) -> Comment:
+async def create_comment(ticket: Ticket, requester_id: str, data: dict, team_id: str) -> Comment:
     body = data['body']
     attachment_ids = data['attachment_ids']
     if attachment_ids:
@@ -66,15 +66,15 @@ async def create_comment(ticket: Ticket, requester_id: str, data: dict) -> Comme
     notified = {uuid.UUID(requester_id), *mentioned_user_ids}
     assignee_id = ticket.assignee_id if ticket.assignee_id not in notified else None
 
-    events = [('redis_stream', build_payload('comment.created', project_id=ticket.project_id, actor_id=requester_id, recipient_id=assignee_id, comment_id=comment_id, ticket_id=ticket.id, ticket_key=ticket.key))] # type: ignore
+    events = [('redis_stream', build_payload('comment.created', team_id=team_id, project_id=ticket.project_id, actor_id=requester_id, recipient_id=assignee_id, comment_id=comment_id, ticket_id=ticket.id, ticket_key=ticket.key))] # type: ignore
     for recipient_id in mentioned_user_ids:
-        events.append(('redis_stream', build_payload('comment.mentioned', project_id=ticket.project_id, actor_id=requester_id, recipient_id=str(recipient_id), comment_id=comment_id, ticket_id=ticket.id, ticket_key=ticket.key))) # type: ignore
+        events.append(('redis_stream', build_payload('comment.mentioned', team_id=team_id, project_id=ticket.project_id, actor_id=requester_id, recipient_id=str(recipient_id), comment_id=comment_id, ticket_id=ticket.id, ticket_key=ticket.key))) # type: ignore
     def _create():
         return create_comment_sync(comment_id, ticket, requester_id, body, attachment_ids, mentioned_user_ids)
 
     return await awrite_with_outbox(_create, events)
 
-async def update_comment(comment: Comment, ticket: Ticket, requester_id: str, data: dict) -> Comment:
+async def update_comment(comment: Comment, ticket: Ticket, requester_id: str, data: dict, team_id: str) -> Comment:
     if str(comment.author_id) != str(requester_id):
         raise PermissionDenied('You can only edit your own comments.')
     body = data['body']
@@ -87,21 +87,21 @@ async def update_comment(comment: Comment, ticket: Ticket, requester_id: str, da
     comment.mentioned_user_ids = await _resolve_mentions(body, requester_id, ticket.project_id) #type: ignore
     comment.is_edited = True
 
-    events = [('redis_stream', build_payload('comment.updated', project_id=ticket.project_id, actor_id=requester_id, comment_id=comment.id, ticket_id=ticket.id, ticket_key=ticket.key))] # type: ignore
+    events = [('redis_stream', build_payload('comment.updated', team_id=team_id, project_id=ticket.project_id, actor_id=requester_id, comment_id=comment.id, ticket_id=ticket.id, ticket_key=ticket.key))] # type: ignore
     for recipient_id in comment.mentioned_user_ids:
         if str(recipient_id) not in previously_mentioned:
-            events.append(('redis_stream', build_payload('comment.mentioned', project_id=ticket.project_id, actor_id=requester_id, recipient_id=str(recipient_id), comment_id=comment.id, ticket_id=ticket.id, ticket_key=ticket.key))) # type: ignore
+            events.append(('redis_stream', build_payload('comment.mentioned', team_id=team_id, project_id=ticket.project_id, actor_id=requester_id, recipient_id=str(recipient_id), comment_id=comment.id, ticket_id=ticket.id, ticket_key=ticket.key))) # type: ignore
 
     def _save():
         return update_comment_sync(comment)
 
     return await awrite_with_outbox(_save, events)
 
-async def delete_comment(comment: Comment, ticket: Ticket, requester_id: str, requester_role: ProjectMembership.Role) -> None:
+async def delete_comment(comment: Comment, ticket: Ticket, requester_id: str, requester_role: ProjectMembership.Role, team_id: str) -> None:
     if str(comment.author_id) != str(requester_id) and requester_role != ProjectMembership.Role.LEAD:
         raise PermissionDenied('You can only delete your own comments.')
     comment_id = comment.id
-    payload = build_payload('comment.deleted', project_id=ticket.project_id, actor_id=requester_id, comment_id=comment_id, ticket_id=ticket.id, ticket_key=ticket.key) # type: ignore
+    payload = build_payload('comment.deleted', team_id=team_id, project_id=ticket.project_id, actor_id=requester_id, comment_id=comment_id, ticket_id=ticket.id, ticket_key=ticket.key) # type: ignore
     def _delete():
         return delete_comment_sync(comment)
     await awrite_with_outbox(_delete, [('redis_stream', payload)])
