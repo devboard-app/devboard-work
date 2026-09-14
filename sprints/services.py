@@ -84,7 +84,7 @@ async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket, actor_id: str) ->
     if sprint.status == Sprint.Status.COMPLETED:
         raise Conflict('You cannot add tickets to a completed sprint.')
     if sprint.project_id != ticket.project_id: #type: ignore
-        raise ValidationError('Ticket does not belong to this project.')
+        raise ValidationError({'ticket_id':'Ticket does not belong to this project.'})
     if ticket.sprint_id is not None: #type: ignore
         raise Conflict('Ticket is already on another sprint.')
     ticket.sprint = sprint #type: ignore

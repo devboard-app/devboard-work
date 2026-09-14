@@ -41,23 +41,23 @@ def can_assign_ticket(requester_role) -> bool:
 
 def validate_story_point(story_points: int) -> None:
     if story_points not in [1, 2, 3, 5, 8, 13, 21]:
-        raise ValidationError('Story point must be a Fibonacci number: 1, 2, 3, 5, 8, 13, 21.')
+        raise ValidationError({'story_points':'Story point must be a Fibonacci number: 1, 2, 3, 5, 8, 13, 21.'})
 
 async def _validate_epic_rules(ticket_type: Ticket.Type, project_id: str, requester_role: Role, assignee_id: str | None, parent_epic_id: str | None) -> Ticket | None:
     if ticket_type == Ticket.Type.EPIC:
         if requester_role != Role.LEAD:
             raise PermissionDenied('Only project Lead can create an Epic.')
         if assignee_id is not None:
-            raise ValidationError('Epic cannot have an assignee.')
+            raise ValidationError({'assignee_id':'Epic cannot have an assignee.'})
         if parent_epic_id is not None:
-            raise ValidationError('Epic cannot have a parent epic.')
+            raise ValidationError({'parent_epic':'Epic cannot have a parent epic.'})
         return None
     if parent_epic_id:
         parent_epic = await get_ticket_by_id(parent_epic_id, project_id)
         if parent_epic is None:
-            raise ValidationError('Parent epic not found.')
+            raise ValidationError({'parent_epic':'Parent epic not found.'})
         if parent_epic.type != Ticket.Type.EPIC:
-            raise ValidationError('parent_epic must be of type Epic.')
+            raise ValidationError({'parent_epic':'parent_epic must be of type Epic.'})
         return parent_epic
     return None
 
@@ -101,7 +101,7 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
     parent_epic = await _validate_epic_rules(ticket_type=type, project_id=str(project.id), requester_role=requester_role, assignee_id=assignee_id, parent_epic_id=parent_epic_id)
 
     if assignee_id and await get_project_membership(str(assignee_id), str(project.id)) is None:
-        raise ValidationError('Asignee must be a member of this project.')
+        raise ValidationError({'assignee_id':'Asignee must be a member of this project.'})
     try:
         ticket = await _create_ticket_with_number(project, title, description, type, priority, status, created_by, assignee_id, parent_epic, due_date, story_points, team_id)
     except IntegrityError:
@@ -118,7 +118,7 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
         raise PermissionDenied('Only Project Lead can assign tickets to others.')
 
     if data.get('assignee_id') and await get_project_membership(str(data['assignee_id']), str(ticket.project_id)) is None: #type: ignore
-        raise ValidationError('Asignee must be a member of this project.')
+        raise ValidationError({'assignee_id':'Asignee must be a member of this project.'})
     
     old_snapshot= _snapshot_ticket(ticket)
 
@@ -127,9 +127,9 @@ async def update_ticket(ticket: Ticket, requester_id: str, requester_role: Proje
         if epic_id:
             parent_epic = await get_ticket_by_id(epic_id, str(ticket.project_id)) #type: ignore
             if parent_epic is None:
-                raise ValidationError('Parent epic not found.')
+                raise ValidationError({'parent_epic':'Parent epic not found.'})
             if parent_epic.type != Ticket.Type.EPIC:
-                raise ValidationError('parent_epic must be of type Epic.')
+                raise ValidationError({'parent_epic':'parent_epic must be of type Epic.'})
             data['parent_epic'] = parent_epic
         else:
             data['parent_epic'] = None
