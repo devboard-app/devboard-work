@@ -40,9 +40,12 @@ class Command(BaseCommand):
                     row.save(update_fields=["delivered_at"])
                 except Exception:
                     row.attempts += 1
-                    row.save(update_fields=["attempts"])
                     if row.attempts >= MAX_ATTEMPTS:
-                        logger.warning(f"Outbox delivery failed for {row.id} (attempt {row.attempts})", exc_info=True)
+                        logger.warning(f"Outbox delivery permanently failed for {row.id} after {row.attempts} attempts, giving up", exc_info=True)
                     else:
-                        logger.warning(f"Outbox delivery failed for {row.id} (attempt {row.attempts})", exc_info=True)
+                        logger.warning(f"Outbox delivery failed for {row.id} (attempt {row.attempts}), retrying", exc_info=True)
+                    try:
+                        row.save(update_fields=["attempts"])
+                    except Exception:
+                        logger.exception(f"Could not persist attempt count for outbox row {row.id}; it will be retried without the increment on the next poll")
             time.sleep(POLL_INTERVAL_SECONDS)
