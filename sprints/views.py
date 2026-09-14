@@ -126,6 +126,6 @@ class SprintTicketView(AsyncAPIView):
         sprint = await get_sprint_or_404(sprint_id, project_id)
         ticket = await get_ticket_or_404(ticket_id, project_id)
         if ticket.sprint_id != sprint.id: #type: ignore
-            raise ValidationError('Ticket does not belong to this sprint.')
+            raise ValidationError({'ticket_id':'Ticket does not belong to this sprint.'})
         await remove_ticket_from_sprint(ticket, sprint, request.user.user_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
