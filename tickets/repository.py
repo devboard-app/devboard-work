@@ -10,7 +10,7 @@ async def get_ticket_by_id(ticket_id: str, project_id: str) -> Ticket | None:
     return await Ticket.objects.filter(id=ticket_id, project_id=project_id).prefetch_related('labels').afirst()
 
 async def get_tickets_by_project(project_id: str, limit: int, offset: int, filters: dict | None = None) -> tuple[list[Ticket], int]:
-    qs = apply_ticket_filters(Ticket.objects.filter(project=project_id), filters or {})
+    qs = apply_ticket_filters(Ticket.objects.filter(project=project_id), filters or {}).prefetch_related('labels')
     return await page(qs, limit, offset)
 
 async def get_next_ticket_number(project_id: str) -> int:

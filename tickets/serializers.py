@@ -15,7 +15,7 @@ class TicketSerializer(serializers.ModelSerializer):
         read_only_fields: ClassVar = ['id', 'key', 'ticket_number', 'created_by', 'created_at', 'updated_at', 'labels']
 
 class TicketListSerializer(serializers.ModelSerializer):
-    
+    labels = LabelListSerializer(many=True, read_only=True)
     class Meta:
         model = Ticket
         fields: ClassVar =['id', 'key', 'title', 'type', 'priority', 'status', 'story_points', 'assignee_id', 'due_date', 'labels']
