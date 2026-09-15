@@ -118,7 +118,8 @@ class SprintTicketView(AsyncAPIView):
         data = validated(SprintTicketInputSerializer, request.data)
         ticket = await get_ticket_or_404(str(data['ticket_id']), project_id)
         await add_ticket_to_sprint(sprint, ticket, request.user.user_id)
-        return Response(status=status.HTTP_200_OK)
+        serializer = TicketSerializer(ticket)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     async def delete(self, request, team_id, project_id, sprint_id, ticket_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)

@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from projects.models import ProjectMembership
 from projects.services import get_project_or_404
 from teams.models import TeamMembership
+from tickets.serializers import TicketSerializer
 from tickets.services import get_ticket_or_404
 from work.pagination import get_limit_offset, paginated
 from work.serializers import validated
@@ -92,7 +93,8 @@ class TicketLabelView(AsyncAPIView):
         data = validated(TicketLabelInputSerializer, request.data)
         label = await get_label_or_404(data['label_id'], project_id)
         await apply_label_to_ticket(ticket, label, request.user.user_id, ProjectMembership.Role(membership.role))
-        return Response(status=status.HTTP_200_OK)
+        serializer = TicketSerializer(ticket)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     async def delete(self, request, team_id, project_id, ticket_id, label_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
