@@ -20,7 +20,7 @@ ATTEMPT_TIMEOUT = 2.0
 async def _attachments_batch_request(payload: dict) -> list[dict]:
     async with httpx.AsyncClient(timeout=ATTEMPT_TIMEOUT) as client:
         response = await client.post(
-            f'{settings.ATTACHMENTS_SERVICE_URL}/internal/attachments/batch',
+            f'{settings.ATTACHMENTS_SERVICE_URL}/internal/attachments/batch/',
             json=payload,
             headers={'X-Service-Key': settings.INTERNAL_API_KEY},
         )

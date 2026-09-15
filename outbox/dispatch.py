@@ -14,7 +14,7 @@ def dispatch(channel: str, payload: dict) -> None:
         _redis_client.xadd(STREAM, payload)
     elif channel == OutboxEvent.Channel.EMAIL:
         response = httpx.post(
-            f"{settings.EMAIL_SERVICE_URL}/email/send",
+            f"{settings.EMAIL_SERVICE_URL}/email/send/",
             json=payload,
             headers={"X-Service-Key": settings.INTERNAL_API_KEY},
             timeout=5.0,
