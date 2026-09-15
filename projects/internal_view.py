@@ -18,7 +18,7 @@ class InternalProjectCheckView(AsyncAPIView):
         return Response({"role": membership.role}, status=status.HTTP_200_OK)
 
 class InternalProjectTeamCheckView(AsyncAPIView):
-    authentication_classes = []  # noqa: RUF012 rewrite auth jwt check so it allows request from other microservice, not only an user
+    authentication_classes = []  # noqa: RUF012 internal service-to-service call, no user JWT
     permission_classes = [IsInternalService]  # noqa: RUF012
 
     async def get(self, request, team_id, project_id):
@@ -26,4 +26,3 @@ class InternalProjectTeamCheckView(AsyncAPIView):
         if project is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
         return Response(status=status.HTTP_200_OK)
-    

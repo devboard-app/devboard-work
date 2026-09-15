@@ -39,6 +39,7 @@ class SprintListCreateView(AsyncAPIView):
     async def get(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
+        await get_project_or_404(project_id, team_id)
         limit, offset = get_limit_offset(request)
         sprints, total = await list_project_sprints(project_id, limit, offset)
         serializer = SprintListSerializer(sprints, many=True)
@@ -58,6 +59,7 @@ class SprintDetailView(AsyncAPIView):
     async def get(self, request, team_id, project_id, sprint_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
+        await get_project_or_404(project_id, team_id)
         sprint = await get_sprint_or_404(sprint_id, project_id)
         serializer = SprintSerializer(sprint)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -65,6 +67,7 @@ class SprintDetailView(AsyncAPIView):
     async def patch(self, request, team_id, project_id, sprint_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
+        await get_project_or_404(project_id, team_id)
         sprint = await get_sprint_or_404(sprint_id, project_id)
         data = validated(SprintInputSerializer, request.data, partial=True)
         updated_sprint = await update_sprint(sprint, data)
@@ -74,6 +77,7 @@ class SprintDetailView(AsyncAPIView):
     async def delete(self, request, team_id, project_id, sprint_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
+        await get_project_or_404(project_id, team_id)
         sprint = await get_sprint_or_404(sprint_id, project_id)
         await delete_sprint(sprint)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -105,6 +109,7 @@ class SprintTicketView(AsyncAPIView):
     async def get(self, request, team_id, project_id, sprint_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
+        await get_project_or_404(project_id, team_id)
         sprint = await get_sprint_or_404(sprint_id, project_id)
         limit, offset = get_limit_offset(request)
         tickets, total = await list_sprint_tickets(sprint, limit, offset)
@@ -114,6 +119,7 @@ class SprintTicketView(AsyncAPIView):
     async def post(self, request, team_id, project_id, sprint_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
+        await get_project_or_404(project_id, team_id)
         sprint = await get_sprint_or_404(sprint_id, project_id)
         data = validated(SprintTicketInputSerializer, request.data)
         ticket = await get_ticket_or_404(str(data['ticket_id']), project_id)
@@ -124,9 +130,10 @@ class SprintTicketView(AsyncAPIView):
     async def delete(self, request, team_id, project_id, sprint_id, ticket_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
+        await get_project_or_404(project_id, team_id)
         sprint = await get_sprint_or_404(sprint_id, project_id)
         ticket = await get_ticket_or_404(ticket_id, project_id)
         if ticket.sprint_id != sprint.id: #type: ignore
-            raise ValidationError({'ticket_id':'Ticket does not belong to this sprint.'})
+            raise ValidationError({'non_field_errors':'Ticket does not belong to this sprint.'})
         await remove_ticket_from_sprint(ticket, sprint, request.user.user_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
