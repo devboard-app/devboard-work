@@ -30,4 +30,3 @@ class CommentInputSerializer(serializers.Serializer):
 
 class CommentUpdateInputSerializer(serializers.Serializer):
     body = serializers.CharField(trim_whitespace=True, allow_blank=False)
-    
