@@ -18,7 +18,7 @@ class TicketListSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Ticket
-        fields: ClassVar =['id', 'key', 'title', 'type', 'priority', 'status', 'story_points', 'assignee_id', 'due_date']
+        fields: ClassVar =['id', 'key', 'title', 'type', 'priority', 'status', 'story_points', 'assignee_id', 'due_date', 'labels']
 
 class TicketInputSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=255)
