@@ -100,6 +100,8 @@ async def create_ticket(project: Project, created_by: str, requester_role: Proje
 
     parent_epic = await _validate_epic_rules(ticket_type=type, project_id=str(project.id), requester_role=requester_role, assignee_id=assignee_id, parent_epic_id=parent_epic_id)
 
+    if assignee_id and str(assignee_id) != created_by and not can_assign_ticket(requester_role):
+        raise PermissionDenied('Only Project Lead can assign tickets to others.')
     if assignee_id and await get_project_membership(str(assignee_id), str(project.id)) is None:
         raise ValidationError({'assignee_id':'Asignee must be a member of this project.'})
     try:
