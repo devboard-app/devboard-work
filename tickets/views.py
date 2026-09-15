@@ -33,6 +33,7 @@ class TicketListCreateView(AsyncAPIView):
     async def get(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
+        await get_project_or_404(project_id, team_id)
         limit, offset = get_limit_offset(request)
         filters = validated(TicketFilterSerializer, request.query_params)
         tickets, total = await list_project_tickets(project_id, limit, offset, filters)
@@ -53,6 +54,7 @@ class TicketDetailView(AsyncAPIView):
     async def get(self, request, team_id, project_id, ticket_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
+        await get_project_or_404(project_id, team_id)
         ticket = await get_ticket_or_404(ticket_id, project_id)
         serializer = TicketSerializer(ticket)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -60,6 +62,7 @@ class TicketDetailView(AsyncAPIView):
     async def patch(self, request, team_id, project_id, ticket_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         membership = await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
+        await get_project_or_404(project_id, team_id)
         ticket = await get_ticket_or_404(ticket_id, project_id)
         data = validated(TicketInputSerializer, request.data, partial=True)
         updated_ticket = await update_ticket(ticket, request.user.user_id, ProjectMembership.Role(membership.role), data, team_id)
@@ -69,6 +72,7 @@ class TicketDetailView(AsyncAPIView):
     async def delete(self, request, team_id, project_id, ticket_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD)
+        await get_project_or_404(project_id, team_id)
         ticket = await get_ticket_or_404(ticket_id, project_id)
         await delete_ticket(ticket, request.user.user_id, team_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -78,6 +82,7 @@ class BoardView(AsyncAPIView):
     async def get(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
+        await get_project_or_404(project_id, team_id)
         filters = validated(TicketFilterSerializer, request.query_params)
         result = await get_board(str(project_id), filters)
         if result['sprint'] is None:
@@ -97,6 +102,7 @@ class BacklogView(AsyncAPIView):
     async def get(self, request, team_id, project_id):
         await require_team_role(request.user.user_id, team_id, TeamRole.OWNER, TeamRole.ADMIN, TeamRole.MEMBER, TeamRole.VIEWER)
         await require_project_role(request.user.user_id, project_id, ProjectRole.LEAD, ProjectRole.CONTRIBUTOR)
+        await get_project_or_404(project_id, team_id)
         limit, offset =  get_limit_offset(request)
         filters = validated(TicketFilterSerializer, request.query_params)
         tickets, total = await get_backlog(str(project_id), limit, offset, filters)
