@@ -21,5 +21,9 @@ def custom_exception_handler(exc, context):
         items = data if isinstance(data, list) else [data]
         errors = {'non_field_errors': [str(item) for item in items]}
 
+    if not errors or not next(iter(errors.values())):
+        response.data = {'detail': 'Invalid request.', 'errors': errors}
+        return response
+
     response.data = {'detail': next(iter(errors.values()))[0], 'errors': errors}
     return response
