@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from rest_framework.views import exception_handler as drf_exception_handler
 
 
@@ -27,3 +28,6 @@ def custom_exception_handler(exc, context):
 
     response.data = {'detail': next(iter(errors.values()))[0], 'errors': errors}
     return response
+
+def server_error(request):
+    return JsonResponse({'detail': 'Unexpected error occured', 'errors': None}, status=500)

@@ -32,3 +32,5 @@ urlpatterns = [
     path('api/internal/projects/<uuid:project_id>/tickets/<str:key>/', InternalTicketByKeyView.as_view(), name='internal-ticket-by-key'),
     path('api/internal/projects/<uuid:project_id>/members/<uuid:user_id>/', InternalProjectCheckView.as_view(), name='internal-project-check'),
 ]
+
+handler500 = 'work.exception_handler.server_error'
