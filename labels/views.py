@@ -99,6 +99,7 @@ class TicketLabelView(AsyncAPIView):
         data = validated(TicketLabelInputSerializer, request.data)
         label = await get_label_or_404(data['label_id'], project_id)
         await apply_label_to_ticket(ticket, label, request.user.user_id, ProjectMembership.Role(membership.role))
+        ticket = await get_ticket_or_404(ticket_id, project_id) #refresh ticket cached on prefetch so it shows the new data
         serializer = TicketSerializer(ticket)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
