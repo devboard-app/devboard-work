@@ -30,4 +30,4 @@ def custom_exception_handler(exc, context):
     return response
 
 def server_error(request):
-    return JsonResponse({'detail': 'Unexpected error occured', 'errors': None}, status=500)
+    return JsonResponse({'detail': 'Unexpected error occurred', 'errors': None}, status=500)
