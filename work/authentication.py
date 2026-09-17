@@ -37,5 +37,5 @@ class JWTAuthentication(BaseAuthentication):
         return (TokenUser(user_id=user_id, email=email, role=role), token)
 
     def authenticate_header(self, request):
-            return 'Bearer'
+        return 'Bearer'
         
