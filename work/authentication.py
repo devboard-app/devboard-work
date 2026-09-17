@@ -35,3 +35,7 @@ class JWTAuthentication(BaseAuthentication):
             raise AuthenticationFailed('Invalid token payload')
 
         return (TokenUser(user_id=user_id, email=email, role=role), token)
+
+    def authenticate_header(self, request):
+            return 'Bearer'
+        
