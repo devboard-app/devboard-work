@@ -2,13 +2,14 @@
 import logging
 
 from django.db import IntegrityError
-from rest_framework.exceptions import APIException, NotFound
+from rest_framework.exceptions import APIException, NotFound, PermissionDenied
 
 from teams.models import Team
 from work.exceptions import Conflict
 
 from .models import Project, ProjectMembership
 from .repository import (
+    count_project_leads,
     create_project,
     create_project_membership,
     get_memberships_by_project_page,
@@ -79,10 +80,15 @@ async def remove_project_member(project_id: str, user_id: str) -> None:
     membership = await get_project_membership(project_id=project_id, user_id=user_id)
     if membership is None:
         raise NotFound('Member not found in this project.')
+    if membership.role == ProjectMembership.Role.LEAD and await count_project_leads(project_id) <= 1:
+        raise PermissionDenied('Cannot remove the only lead.')
     await del_project_membership(membership)
 
 async def list_project_members(project_id: str, limit: int, offset: int) -> tuple[list[ProjectMembership], int]:
     return await get_memberships_by_project_page(project_id, limit, offset)
 
 async def update_project_member(membership: ProjectMembership, role: str) -> ProjectMembership:
+    if membership.role == ProjectMembership.Role.LEAD and role != ProjectMembership.Role.LEAD:
+        if await count_project_leads(str(membership.project_id)) <= 1:
+            raise PermissionDenied('Cannot demote the only lead.')
     return await update_project_membership(membership, role)

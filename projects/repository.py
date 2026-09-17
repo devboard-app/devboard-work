@@ -37,3 +37,6 @@ async def update_project_membership(membership: ProjectMembership, role: str) ->
     await membership.asave()
     return membership
 
+async def count_project_leads(project_id: str) -> int:
+    return await ProjectMembership.objects.filter(project=project_id, role=ProjectMembership.Role.LEAD).acount()
+
