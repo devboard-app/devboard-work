@@ -20,6 +20,21 @@ async def get_user_id_by_email(email: str) -> str | None:
 
     return response.json().get('user_id')
 
+async def get_user_status(user_id: str) -> str | None:
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(
+                f'{settings.CORE_SERVICE_URL}/api/users/internal/{user_id}/status/',
+                headers={'X-Service-Key': settings.INTERNAL_API_KEY}
+            )
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+    except (httpx.TransportError, httpx.HTTPStatusError):
+        raise ServiceUnavailable()
+
+    return response.json().get('status')
+
 async def send_member_notification(to: str, team_name: str, inviter_name: str) -> None:
     payload = {
         "to": to,
