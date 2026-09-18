@@ -32,6 +32,9 @@ async def get_memberships_by_project_page(project_id: str, limit: int, offset: i
 async def delete_project_membership(membership: ProjectMembership) -> None:
     await membership.adelete()
 
+async def delete_project_membership_for_user_in_team(user_id: str, team_id: str) -> None:
+    await ProjectMembership.objects.filter(user_id=user_id, project__team_id=team_id).adelete()
+
 async def update_project_membership(membership: ProjectMembership, role: str) -> ProjectMembership:
     membership.role = role
     await membership.asave()

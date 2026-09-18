@@ -7,6 +7,7 @@ from rest_framework.exceptions import (
 )
 
 from outbox.writer import awrite_with_outbox
+from projects.repository import delete_project_membership_for_user_in_team
 from work.exceptions import Conflict
 
 from .infrastructure import get_user_id_by_email
@@ -75,6 +76,7 @@ async def remove_member(team_id: str, user_id: str, requester_role: str) -> None
     if not can_assign_role(requester_role, target_membership.role):
         raise PermissionDenied('Cannot remove a member with equal or higher role.')
     await delete_membership(target_membership)
+    await delete_project_membership_for_user_in_team(str(user_id), str(team_id))
 
 async def change_member_role(team_id: str, user_id: str, requester_role: str, target_role: str) -> TeamMembership:
     target_membership = await get_membership_by_user_and_team(str(user_id), str(team_id))
@@ -101,3 +103,5 @@ async def leave_team(team_id: str, user_id: str) -> None:
     if membership.role == Role.OWNER:
         raise PermissionDenied('Cannot leave team if you are the owner.')
     await delete_membership(membership)
+    await delete_project_membership_for_user_in_team(str(user_id), str(team_id))
+    
