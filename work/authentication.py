@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 
+from asgiref.sync import async_to_sync
 from django.conf import settings
 from jose import JWTError, jwt
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+
+from teams.infrastructure import get_user_status
 
 
 @dataclass
@@ -33,6 +36,10 @@ class JWTAuthentication(BaseAuthentication):
 
         if not user_id:
             raise AuthenticationFailed('Invalid token payload')
+
+        status = async_to_sync(get_user_status)(user_id)
+        if status != 'active':
+            raise AuthenticationFailed('User is inactive')
 
         return (TokenUser(user_id=user_id, email=email, role=role), token)
 
