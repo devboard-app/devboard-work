@@ -15,7 +15,8 @@ class OutboxEvent(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     delivered_at = models.DateTimeField(null=True, blank=True)
     attempts = models.IntegerField(default=0)
+    next_attempt_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'outbox_events'
-        indexes: ClassVar = [models.Index(fields=['delivered_at', 'created_at'])]
+        indexes: ClassVar = [models.Index(fields=['delivered_at', 'next_attempt_at', 'created_at'])]
