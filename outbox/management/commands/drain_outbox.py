@@ -44,7 +44,7 @@ class Command(BaseCommand):
             rows.sort(key=lambda r: r.channel != OutboxEvent.Channel.REDIS_STREAM) # redis_stream rows go first 
             for row in rows:
                 try:
-                    dispatch(row.channel, row.payload)
+                    dispatch(row.channel, row.payload, outbox_id=str(row.id))
                     row.delivered_at = timezone.now()
                     row.save(update_fields=["delivered_at"])
                 except Exception:
