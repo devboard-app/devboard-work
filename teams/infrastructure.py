@@ -1,8 +1,12 @@
+import json
+
 import httpx
 from django.conf import settings
 
 from work.exceptions import ServiceUnavailable
+from work.redis import async_redis_client
 
+USER_STATUS_TTL_SECONDS = 60
 
 async def get_user_id_by_email(email: str) -> str | None:
     try:
@@ -21,6 +25,11 @@ async def get_user_id_by_email(email: str) -> str | None:
     return response.json().get('user_id')
 
 async def get_user_status(user_id: str) -> str | None:
+    cache_key = f"user_status:{user_id}"
+    cached = await async_redis_client.get(cache_key)
+    if cached is not None:
+        return json.loads(cached)
+    
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get(
@@ -28,12 +37,15 @@ async def get_user_status(user_id: str) -> str | None:
                 headers={'X-Service-Key': settings.INTERNAL_API_KEY}
             )
         if response.status_code == 404:
-            return None
-        response.raise_for_status()
+            status = None
+        else:
+            response.raise_for_status()
+            status = response.json().get('status')
     except (httpx.TransportError, httpx.HTTPStatusError):
         raise ServiceUnavailable()
 
-    return response.json().get('status')
+    await async_redis_client.setex(cache_key, USER_STATUS_TTL_SECONDS, json.dumps(status))
+    return status
 
 async def send_member_notification(to: str, team_name: str, inviter_name: str) -> None:
     payload = {
