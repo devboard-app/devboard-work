@@ -48,6 +48,8 @@ Browser ──JWT──> devboard-work ──> PostgreSQL
 analytics, integrations ──X-Service-Key──> devboard-work  (who is on which team or project)
 ```
 
+Every authenticated request checks the caller's account status with devboard-core. That result is cached in Redis for 60 seconds, so core being slow or briefly down doesn't slow down or fail every request here — a deactivated user is blocked within 60 seconds instead of immediately.
+
 ---
 
 ## Roles
@@ -157,7 +159,7 @@ For other services only.
 
 ## Comments: files and mentions
 
-**Files.** The file is stored in devboard-attachments. The comment keeps only the file ids. When you read a comment, work asks devboard-attachments for download links. A list of comments makes one call for the whole page. If devboard-attachments is down, comments still load, with an empty `attachments` list.
+**Files.** The file is stored in devboard-attachments. The comment keeps only the file ids. When you read a comment, work asks devboard-attachments for download links. A list of comments makes one call for the whole page. If devboard-attachments is down, comments still load, with an empty `attachments` list. Deleting a comment sends its attachment ids along with the `comment.deleted` event, so devboard-attachments can delete the files too instead of leaving them orphaned.
 
 **Mentions.** Write `@username` in a comment. Work looks the name up in devboard-core and saves the user ids. These mentions are skipped, with no error:
 
@@ -176,7 +178,8 @@ Work never sends events straight to Redis. It uses an **outbox**, so an event is
 1. The change and the event are saved in **one database transaction**.
 2. The relay container (`python manage.py drain_outbox`) reads unsent events every 2 seconds.
 3. It sends them to Redis (stream `devboard:events`) or to devboard-email.
-4. A failed send is tried again, up to **5 times**. After that, the row stays in the table as failed.
+4. A failed send retries with a growing delay (4s, doubling up to a 300s cap) instead of failing fast. Up to 150 attempts — roughly half a day — before the row is left as failed and needs a manual retry.
+5. Every event sent to Redis carries the outbox row's own id (`outbox_id`). If the relay crashes after sending but before marking the row delivered, the row is sent again on the next poll — `outbox_id` lets readers (like devboard-analytics) tell that redelivery apart from a genuinely new event, so it isn't double-counted.
 
 Events on the stream:
 
