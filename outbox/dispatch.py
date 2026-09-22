@@ -1,17 +1,18 @@
 import httpx
-import redis
 from django.conf import settings
+
+from work.redis import redis_client
 
 from .models import OutboxEvent
 
 STREAM = "devboard:events"
 
-_redis_client = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
+
 
 
 def dispatch(channel: str, payload: dict, outbox_id: str) -> None:
     if channel == OutboxEvent.Channel.REDIS_STREAM:
-        _redis_client.xadd(STREAM, {**payload, "outbox_id": outbox_id})
+        redis_client.xadd(STREAM, {**payload, "outbox_id": outbox_id})
     elif channel == OutboxEvent.Channel.EMAIL:
         response = httpx.post(
             f"{settings.EMAIL_SERVICE_URL}/email/send/",
