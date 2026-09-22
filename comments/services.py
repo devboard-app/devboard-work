@@ -101,7 +101,8 @@ async def delete_comment(comment: Comment, ticket: Ticket, requester_id: str, re
     if str(comment.author_id) != str(requester_id) and requester_role != ProjectMembership.Role.LEAD:
         raise PermissionDenied('You can only delete your own comments.')
     comment_id = comment.id
-    payload = build_payload('comment.deleted', team_id=team_id, project_id=ticket.project_id, actor_id=requester_id, comment_id=comment_id, ticket_id=ticket.id, ticket_key=ticket.key) # type: ignore
+    payload = build_payload('comment.deleted', team_id=team_id, project_id=ticket.project_id, actor_id=requester_id, comment_id=comment_id, ticket_id=ticket.id, ticket_key=ticket.key,  # type: ignore
+                            attachment_ids=','.join(str(i) for i in comment.attachment_ids)) 
     def _delete():
         return delete_comment_sync(comment)
     await awrite_with_outbox(_delete, [('redis_stream', payload)])
