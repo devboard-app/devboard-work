@@ -41,3 +41,4 @@ class TicketFilterSerializer(serializers.Serializer):
     priority = serializers.ChoiceField(choices=Ticket.Priority.choices, required=False)
     type = serializers.ChoiceField(choices=Ticket.Type.choices, required=False)
     label = serializers.UUIDField(required=False)
+    parent_epic = serializers.UUIDField(required=False)

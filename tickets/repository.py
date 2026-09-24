@@ -109,4 +109,6 @@ def apply_ticket_filters(qs, filters: dict):
         qs = qs.filter(type=filters['type'])
     if 'label' in filters:
         qs = qs.filter(labels__id=filters['label'])
+    if 'parent_epic' in filters:
+        qs = qs.filter(parent_epic_id=filters['parent_epic'])
     return qs
