@@ -48,7 +48,7 @@ async def delete_sprint(sprint: Sprint) -> None:
         raise Conflict('You cannot delete Active or Completed sprints.')
     await delete_sprint_repository(sprint)
 
-async def start_sprint(sprint: Sprint, project_id: str, team_id: str, actor_id: str) -> Sprint:
+async def start_sprint(sprint: Sprint, project_id: str, team_id: str, actor_id: str, project_name: str) -> Sprint:
     if sprint.status != Sprint.Status.CREATED:
         raise Conflict('You cannot start Active or Completed sprints.')
     if await get_active_sprint_by_project(project_id):
@@ -56,7 +56,7 @@ async def start_sprint(sprint: Sprint, project_id: str, team_id: str, actor_id: 
     if not await sprint_has_tickets(sprint):
         raise Conflict('Sprint must have at least one ticket.')
     sprint.status = Sprint.Status.ACTIVE
-    payload = build_payload('sprint.started', team_id=team_id, actor_id=actor_id, sprint_id=sprint.id, sprint_name=sprint.name, project_id=sprint.project_id, # type: ignore
+    payload = build_payload('sprint.started', team_id=team_id, actor_id=actor_id, sprint_id=sprint.id, sprint_name=sprint.name, project_id=sprint.project_id, project_name=project_name, # type: ignore
                             start_date=sprint.start_date.isoformat() if sprint.start_date else None, end_date=sprint.end_date.isoformat() if sprint.end_date else None)
     def _save():
         return update_sprint_sync(sprint)
@@ -67,11 +67,11 @@ async def start_sprint(sprint: Sprint, project_id: str, team_id: str, actor_id: 
 
     return sprint
 
-async def complete_sprint(sprint: Sprint, team_id: str, actor_id: str) -> Sprint:
+async def complete_sprint(sprint: Sprint, team_id: str, actor_id: str, project_name: str) -> Sprint:
     if sprint.status != Sprint.Status.ACTIVE:
         raise Conflict('You can only complete Active sprints.')
     sprint.status = Sprint.Status.COMPLETED
-    payload = build_payload('sprint.completed', team_id=team_id, actor_id=actor_id, sprint_id=sprint.id, sprint_name=sprint.name, project_id=sprint.project_id, # type: ignore
+    payload = build_payload('sprint.completed', team_id=team_id, actor_id=actor_id, sprint_id=sprint.id, sprint_name=sprint.name, project_id=sprint.project_id, project_name=project_name,  # type: ignore
                             start_date=sprint.start_date.isoformat() if sprint.start_date else None, end_date=sprint.end_date.isoformat() if sprint.end_date else None)
     def _complete():
         move_unfinished_tickets_to_backlog_sync(sprint)
