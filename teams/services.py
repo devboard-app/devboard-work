@@ -84,6 +84,8 @@ async def change_member_role(team_id: str, user_id: str, requester_role: str, ta
         raise NotFound('User not found.')
     if not can_assign_role(requester_role, target_role):
         raise PermissionDenied('You cannot assign this role.')
+    if not can_assign_role(requester_role, target_membership.role):
+        raise PermissionDenied('Cannot change a member with equal or higher role.')
     if target_membership.role == Role.OWNER:
         raise PermissionDenied('You cannot demote the owner.')
     target_membership.role = target_role
