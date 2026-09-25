@@ -87,19 +87,33 @@ async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket, actor_id: str) ->
         raise ValidationError({'ticket_id':'Ticket does not belong to this project.'})
     if ticket.sprint_id is not None: #type: ignore
         raise Conflict('Ticket is already on another sprint.')
+    moved = ticket.status == Ticket.Status.BACKLOG
+    if moved:
+        ticket.status = Ticket.Status.TODO # joining a sprint = planned work
     ticket.sprint = sprint #type: ignore
     payload = build_payload('ticket.sprint_added', project_id=ticket.project_id, actor_id=actor_id, ticket_id=ticket.id, ticket_key=ticket.key, sprint_id=sprint.id, sprint_name=sprint.name) # type: ignore
+    events =[('redis_stream', payload)]
+    if moved:
+        # no recipient_id, so the assignee isn't notified about an automatic move
+        events.append(('redis_stream', build_payload('ticket.status_changed', project_id=ticket.project_id, actor_id=actor_id, ticket_id=ticket.id, ticket_key=ticket.key, from_status='backlog', to_status='todo'))) # type: ignore
 
     def _save():
         return update_ticket_sync(ticket)
-    await awrite_with_outbox(_save, [('redis_stream', payload)])
+    await awrite_with_outbox(_save, events)
 
 async def remove_ticket_from_sprint(ticket: Ticket, sprint: Sprint, actor_id: str) -> None:
+    old_status = ticket.status
     ticket.sprint = None
+    if ticket.status != Ticket.Status.DONE:
+        ticket.status = Ticket.Status.BACKLOG
     payload = build_payload('ticket.sprint_removed', project_id=ticket.project_id, actor_id=actor_id, ticket_id=ticket.id, ticket_key=ticket.key, sprint_id=sprint.id, sprint_name=sprint.name) # type: ignore
+    events = [('redis_stream', payload)]
+    if ticket.status != old_status:
+        events.append(('redis_stream', build_payload('ticket.status_changed', project_id=ticket.project_id, actor_id=actor_id, ticket_id=ticket.id, ticket_key=ticket.key, from_status=old_status, to_status=ticket.status))) # type: ignore
+    
     def _save():
         return update_ticket_sync(ticket)
-    await awrite_with_outbox(_save, [('redis_stream', payload)])
+    await awrite_with_outbox(_save, events)
 
 async def list_sprint_tickets(sprint: Sprint, limit: int, offset: int) -> tuple[list[Ticket], int]:
     return await get_sprint_tickets_page(sprint, limit, offset)
