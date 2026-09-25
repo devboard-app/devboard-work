@@ -9,6 +9,8 @@ class Team(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
+    avatar = models.URLField(blank=True, default='')
+    banner = models.URLField(blank=True, default='')
     owner_id = models.UUIDField()
     created_at = models.DateTimeField(auto_now_add=True)
 

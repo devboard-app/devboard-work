@@ -9,7 +9,7 @@ class TeamSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Team
-        fields: ClassVar = ['id', 'name', 'description', 'owner_id', 'created_at']
+        fields: ClassVar = ['id', 'name', 'description', 'avatar', 'banner', 'owner_id', 'created_at']
         read_only_fields: ClassVar = ['id', 'owner_id', 'created_at']
 
 class TeamMembershipSerializer(serializers.ModelSerializer):
@@ -22,7 +22,9 @@ class TeamMembershipSerializer(serializers.ModelSerializer):
 class TeamInputSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=100)
     description = serializers.CharField(allow_blank=True, required=False, default='')
-
+    avatar = serializers.URLField(allow_blank=True, required=False)
+    banner = serializers.URLField(allow_blank=True, required=False)
+    
     def validate(self, attrs):
         if not attrs:
             raise serializers.ValidationError('No fields to update.')

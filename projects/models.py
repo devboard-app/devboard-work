@@ -10,6 +10,8 @@ class Project(models.Model):
     name = models.CharField(max_length=100)
     key = models.CharField(max_length=10)
     description = models.TextField(blank=True)
+    avatar = models.URLField(blank=True, default='')
+    banner = models.URLField(blank=True, default='')
     team = models.ForeignKey('teams.Team', on_delete=models.CASCADE, related_name='projects')
     created_by = models.UUIDField()
     created_at = models.DateTimeField(auto_now_add=True)
