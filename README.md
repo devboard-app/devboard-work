@@ -2,7 +2,7 @@
 
 **The heart of DevBoard.** Teams, projects, tickets, labels, sprints and comments all live here. Every change also sends an event to the rest of the system.
 
-- **Port:** `8004`
+- **Port:** `18004`
 - **Stack:** Django, Django REST Framework (async views), PostgreSQL, Redis Streams
 - **Two containers, one image:** the API, and an **outbox relay** that delivers events (see "Events").
 
@@ -12,7 +12,7 @@
 
 1. Open a terminal in `devboard-infra`.
 2. Run `setup.bat`. It creates the database, starts both containers and runs the migrations.
-3. Open `http://localhost:8004/api/teams/`. It answers `401`, which means the service is up and wants a login.
+3. Open `http://localhost:18004/api/teams/`. It answers `401`, which means the service is up and wants a login.
 
 Only want this service? The database and Redis must already be running. Then:
 
