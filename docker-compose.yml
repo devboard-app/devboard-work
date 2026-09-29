@@ -17,7 +17,7 @@ services:
     ports:
       - "8004:8000"
     networks:
-      - devboard-network
+      - devboard-ic-network
 
   devboard-work-outbox-relay:
     build:
@@ -31,9 +31,9 @@ services:
       REDIS_URL: redis://devboard-redis:6379/0
     command: python manage.py drain_outbox
     networks:
-      - devboard-network
+      - devboard-ic-network
 
 networks:
-  devboard-network:
-    name: devboard-network
+  devboard-ic-network:
+    name: devboard-ic-network
     external: true
