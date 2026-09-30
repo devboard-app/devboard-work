@@ -8,8 +8,6 @@ from .models import OutboxEvent
 STREAM = "devboard:events"
 
 
-
-
 def dispatch(channel: str, payload: dict, outbox_id: str) -> None:
     if channel == OutboxEvent.Channel.REDIS_STREAM:
         redis_client.xadd(STREAM, {**payload, "outbox_id": outbox_id})

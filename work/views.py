@@ -12,7 +12,9 @@ class AsyncAPIView(APIView):
 
         try:
             await sync_to_async(self.initial)(request, *args, **kwargs)
-            handler = getattr(self, request.method.lower(), self.http_method_not_allowed)
+            handler = getattr(
+                self, request.method.lower(), self.http_method_not_allowed
+            )
             response = await handler(request, *args, **kwargs)  # type: ignore
         except Exception as exc:  # noqa: BLE001
             response = self.handle_exception(exc)

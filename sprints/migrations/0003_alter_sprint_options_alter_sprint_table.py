@@ -4,18 +4,17 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('sprints', '0002_sprint_unique_active_sprint_per_project'),
+        ("sprints", "0002_sprint_unique_active_sprint_per_project"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='sprint',
-            options={'ordering': ['-created_at', 'id']},
+            name="sprint",
+            options={"ordering": ["-created_at", "id"]},
         ),
         migrations.AlterModelTable(
-            name='sprint',
-            table='sprints',
+            name="sprint",
+            table="sprints",
         ),
     ]

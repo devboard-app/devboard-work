@@ -13,4 +13,6 @@ def write_with_outbox(domain_write_fn, events: list[tuple[str, dict]]):
 
 
 async def awrite_with_outbox(domain_write_fn, events: list[tuple[str, dict]]):
-    return await sync_to_async(write_with_outbox, thread_sensitive=True)(domain_write_fn, events)
+    return await sync_to_async(write_with_outbox, thread_sensitive=True)(
+        domain_write_fn, events
+    )

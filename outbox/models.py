@@ -6,8 +6,8 @@ from django.db import models
 
 class OutboxEvent(models.Model):
     class Channel(models.TextChoices):
-        REDIS_STREAM = 'redis_stream', 'Redis Stream'
-        EMAIL = 'email', 'Email'
+        REDIS_STREAM = "redis_stream", "Redis Stream"
+        EMAIL = "email", "Email"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     channel = models.CharField(max_length=32, choices=Channel.choices)
@@ -18,5 +18,7 @@ class OutboxEvent(models.Model):
     next_attempt_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'outbox_events'
-        indexes: ClassVar = [models.Index(fields=['delivered_at', 'next_attempt_at', 'created_at'])]
+        db_table = "outbox_events"
+        indexes: ClassVar = [
+            models.Index(fields=["delivered_at", "next_attempt_at", "created_at"])
+        ]

@@ -4,20 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('projects', '0003_alter_project_options_and_more'),
+        ("projects", "0003_alter_project_options_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='project',
-            name='avatar',
-            field=models.URLField(blank=True, default=''),
+            model_name="project",
+            name="avatar",
+            field=models.URLField(blank=True, default=""),
         ),
         migrations.AddField(
-            model_name='project',
-            name='banner',
-            field=models.URLField(blank=True, default=''),
+            model_name="project",
+            name="banner",
+            field=models.URLField(blank=True, default=""),
         ),
     ]

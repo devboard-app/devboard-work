@@ -5,16 +5,21 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('sprints', '0001_initial'),
-        ('tickets', '0002_ticket_labels'),
+        ("sprints", "0001_initial"),
+        ("tickets", "0002_ticket_labels"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='ticket',
-            name='sprint',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='tickets', to='sprints.sprint'),
+            model_name="ticket",
+            name="sprint",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="tickets",
+                to="sprints.sprint",
+            ),
         ),
     ]

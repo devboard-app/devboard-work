@@ -27,70 +27,95 @@ from .repository import (
 Role = TeamMembership.Role
 logger = logging.getLogger(__name__)
 
+
 async def get_team_or_404(pk: str) -> Team:
     team = await get_team_by_id(pk)
     if team is None:
-        raise NotFound('Team not found.')
+        raise NotFound("Team not found.")
     return team
 
-async def list_team_members(team_id: str, limit: int, offset: int) -> tuple[list[TeamMembership], int]:
+
+async def list_team_members(
+    team_id: str, limit: int, offset: int
+) -> tuple[list[TeamMembership], int]:
     memberships, total = await get_membership_by_team(team_id, limit, offset)
     return memberships, total
+
 
 async def list_my_teams(user_id: str, limit: int, offset: int):
     memberships, total = await get_teams_by_user(user_id, limit, offset)
     return [m.team for m in memberships], total
 
+
 async def create_team_with_owner(name: str, description: str, owner_id: str):
     team = await create_team(name, description, owner_id)
     try:
         await create_membership(team, owner_id, Role.OWNER)
-    except Exception:  
-        logger.exception(f'Rolling back team {team.id}: owner membership creation failed.')
+    except Exception:
+        logger.exception(
+            f"Rolling back team {team.id}: owner membership creation failed."
+        )
         await team.adelete()
         raise APIException("Could not create the team, please try again.")
-    return team    
+    return team
 
-async def add_member(team: Team, requester_role: str, email: str, target_role: str, inviter_email: str) -> TeamMembership:
+
+async def add_member(
+    team: Team, requester_role: str, email: str, target_role: str, inviter_email: str
+) -> TeamMembership:
     if not can_assign_role(requester_role, target_role):
-        raise PermissionDenied('You cannot assign this role.')
+        raise PermissionDenied("You cannot assign this role.")
     user_id = await get_user_id_by_email(email)
     if user_id is None:
-        raise NotFound('User not found.')
+        raise NotFound("User not found.")
     existing = await get_membership_by_user_and_team(str(user_id), str(team.id))
     if existing is not None:
-        raise Conflict('User is already a member.')
-    payload = {"to": email, "subject": "You were invited to a team", "template": "team_invitation", "variables":{"team_name": team.name, "inviter_name": inviter_email}}
+        raise Conflict("User is already a member.")
+    payload = {
+        "to": email,
+        "subject": "You were invited to a team",
+        "template": "team_invitation",
+        "variables": {"team_name": team.name, "inviter_name": inviter_email},
+    }
 
     def _create():
         return create_membership_sync(team, user_id, target_role)
 
-    return await awrite_with_outbox(_create, [('email', payload)])
+    return await awrite_with_outbox(_create, [("email", payload)])
+
 
 async def remove_member(team_id: str, user_id: str, requester_role: str) -> None:
-    target_membership = await get_membership_by_user_and_team(str(user_id), str(team_id))
+    target_membership = await get_membership_by_user_and_team(
+        str(user_id), str(team_id)
+    )
     if target_membership is None:
-        raise NotFound('User not found')
+        raise NotFound("User not found")
     if target_membership.role == Role.OWNER:
-        raise PermissionDenied('Cannot remove a team owner.')
+        raise PermissionDenied("Cannot remove a team owner.")
     if not can_assign_role(requester_role, target_membership.role):
-        raise PermissionDenied('Cannot remove a member with equal or higher role.')
+        raise PermissionDenied("Cannot remove a member with equal or higher role.")
     await delete_membership(target_membership)
     await delete_project_membership_for_user_in_team(str(user_id), str(team_id))
 
-async def change_member_role(team_id: str, user_id: str, requester_role: str, target_role: str) -> TeamMembership:
-    target_membership = await get_membership_by_user_and_team(str(user_id), str(team_id))
+
+async def change_member_role(
+    team_id: str, user_id: str, requester_role: str, target_role: str
+) -> TeamMembership:
+    target_membership = await get_membership_by_user_and_team(
+        str(user_id), str(team_id)
+    )
     if target_membership is None:
-        raise NotFound('User not found.')
+        raise NotFound("User not found.")
     if not can_assign_role(requester_role, target_role):
-        raise PermissionDenied('You cannot assign this role.')
+        raise PermissionDenied("You cannot assign this role.")
     if not can_assign_role(requester_role, target_membership.role):
-        raise PermissionDenied('Cannot change a member with equal or higher role.')
+        raise PermissionDenied("Cannot change a member with equal or higher role.")
     if target_membership.role == Role.OWNER:
-        raise PermissionDenied('You cannot demote the owner.')
+        raise PermissionDenied("You cannot demote the owner.")
     target_membership.role = target_role
     await target_membership.asave()
     return target_membership
+
 
 async def update_team(team: Team, data: dict) -> Team:
     for key, value in data.items():
@@ -98,12 +123,12 @@ async def update_team(team: Team, data: dict) -> Team:
     await team.asave()
     return team
 
+
 async def leave_team(team_id: str, user_id: str) -> None:
     membership = await get_membership_by_user_and_team(user_id, team_id)
     if membership is None:
-        raise NotFound('You are not a member of this team.')
+        raise NotFound("You are not a member of this team.")
     if membership.role == Role.OWNER:
-        raise PermissionDenied('Cannot leave team if you are the owner.')
+        raise PermissionDenied("Cannot leave team if you are the owner.")
     await delete_membership(membership)
     await delete_project_membership_for_user_in_team(str(user_id), str(team_id))
-    

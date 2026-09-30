@@ -8,9 +8,10 @@ MAX_ATTACHMENTS = 5
 
 
 class Comment(models.Model):
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    ticket = models.ForeignKey('tickets.Ticket', on_delete=models.CASCADE, related_name='comments')
+    ticket = models.ForeignKey(
+        "tickets.Ticket", on_delete=models.CASCADE, related_name="comments"
+    )
     author_id = models.UUIDField()
     body = models.TextField()
     attachment_ids = ArrayField(models.UUIDField(), default=list, blank=True)
@@ -20,9 +21,9 @@ class Comment(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        db_table = 'comments'
-        ordering: ClassVar = ['created_at', 'id']
-        indexes: ClassVar = [models.Index(fields=['ticket', 'created_at'])]
+        db_table = "comments"
+        ordering: ClassVar = ["created_at", "id"]
+        indexes: ClassVar = [models.Index(fields=["ticket", "created_at"])]
 
     def __str__(self):
         return str(self.id)

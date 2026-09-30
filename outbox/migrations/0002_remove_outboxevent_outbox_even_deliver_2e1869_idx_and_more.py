@@ -4,23 +4,25 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('outbox', '0001_initial'),
+        ("outbox", "0001_initial"),
     ]
 
     operations = [
         migrations.RemoveIndex(
-            model_name='outboxevent',
-            name='outbox_even_deliver_2e1869_idx',
+            model_name="outboxevent",
+            name="outbox_even_deliver_2e1869_idx",
         ),
         migrations.AddField(
-            model_name='outboxevent',
-            name='next_attempt_at',
+            model_name="outboxevent",
+            name="next_attempt_at",
             field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddIndex(
-            model_name='outboxevent',
-            index=models.Index(fields=['delivered_at', 'next_attempt_at', 'created_at'], name='outbox_even_deliver_f8aa2b_idx'),
+            model_name="outboxevent",
+            index=models.Index(
+                fields=["delivered_at", "next_attempt_at", "created_at"],
+                name="outbox_even_deliver_f8aa2b_idx",
+            ),
         ),
     ]

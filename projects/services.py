@@ -1,4 +1,3 @@
-
 import logging
 
 from django.db import IntegrityError
@@ -27,35 +26,48 @@ from .repository import (
 
 logger = logging.getLogger(__name__)
 
+
 async def get_project_or_404(project_id: str, team_id: str) -> Project:
     project = await get_project_by_id(project_id, team_id)
     if project is None:
-        raise NotFound('Project not found.')
+        raise NotFound("Project not found.")
     return project
+
 
 async def get_project_member_or_404(user_id: str, project_id: str) -> ProjectMembership:
     membership = await get_project_membership(user_id, project_id)
     if membership is None:
-        raise NotFound('Member not found in this project.')
+        raise NotFound("Member not found in this project.")
     return membership
 
-async def list_team_projects(team_id: str, limit: int, offset: int) -> tuple[list[Project], int]:
+
+async def list_team_projects(
+    team_id: str, limit: int, offset: int
+) -> tuple[list[Project], int]:
     return await get_projects_by_team(team_id, limit, offset)
+
 
 async def create_project_with_lead(data: dict, team: Team, creator_id: str) -> Project:
     try:
-        project = await create_project(data['name'], data['key'], data['description'], team, creator_id)
+        project = await create_project(
+            data["name"], data["key"], data["description"], team, creator_id
+        )
     except IntegrityError:
-        raise Conflict('A project with this key already exists.')
-    
+        raise Conflict("A project with this key already exists.")
+
     try:
-        await create_project_membership(project, creator_id, ProjectMembership.Role.LEAD)
+        await create_project_membership(
+            project, creator_id, ProjectMembership.Role.LEAD
+        )
     except Exception:
-        logger.exception(f'Rolling back project {project.id}: membership creation failed')
+        logger.exception(
+            f"Rolling back project {project.id}: membership creation failed"
+        )
         await delete_project(project)
         raise APIException("Could not create the project, please try again.")
-    
+
     return project
+
 
 async def update_project(project: Project, data: dict) -> Project:
     for key, value in data.items():
@@ -63,32 +75,49 @@ async def update_project(project: Project, data: dict) -> Project:
     try:
         await project.asave()
     except IntegrityError:
-        raise Conflict('A project with this key already exists.')
+        raise Conflict("A project with this key already exists.")
     return project
+
 
 async def delete_project(project: Project) -> None:
     await del_project(project)
 
-async def add_project_member(project: Project, user_id: str, role: str) -> ProjectMembership:
+
+async def add_project_member(
+    project: Project, user_id: str, role: str
+) -> ProjectMembership:
     membership = await get_project_membership(user_id, str(project.id))
     if membership is not None:
-        raise Conflict('User is already a member.')
-    
+        raise Conflict("User is already a member.")
+
     return await create_project_membership(project, user_id, role)
+
 
 async def remove_project_member(project_id: str, user_id: str) -> None:
     membership = await get_project_membership(project_id=project_id, user_id=user_id)
     if membership is None:
-        raise NotFound('Member not found in this project.')
-    if membership.role == ProjectMembership.Role.LEAD and await count_project_leads(project_id) <= 1:
-        raise PermissionDenied('Cannot remove the only lead.')
+        raise NotFound("Member not found in this project.")
+    if (
+        membership.role == ProjectMembership.Role.LEAD
+        and await count_project_leads(project_id) <= 1
+    ):
+        raise PermissionDenied("Cannot remove the only lead.")
     await del_project_membership(membership)
 
-async def list_project_members(project_id: str, limit: int, offset: int) -> tuple[list[ProjectMembership], int]:
+
+async def list_project_members(
+    project_id: str, limit: int, offset: int
+) -> tuple[list[ProjectMembership], int]:
     return await get_memberships_by_project_page(project_id, limit, offset)
 
-async def update_project_member(membership: ProjectMembership, role: str) -> ProjectMembership:
-    if membership.role == ProjectMembership.Role.LEAD and role != ProjectMembership.Role.LEAD:
+
+async def update_project_member(
+    membership: ProjectMembership, role: str
+) -> ProjectMembership:
+    if (
+        membership.role == ProjectMembership.Role.LEAD
+        and role != ProjectMembership.Role.LEAD
+    ):
         if await count_project_leads(str(membership.project_id)) <= 1:
-            raise PermissionDenied('Cannot demote the only lead.')
+            raise PermissionDenied("Cannot demote the only lead.")
     return await update_project_membership(membership, role)

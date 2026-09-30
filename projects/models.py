@@ -5,43 +5,44 @@ from django.db import models
 
 
 class Project(models.Model):
-
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     name = models.CharField(max_length=100)
     key = models.CharField(max_length=10)
     description = models.TextField(blank=True)
-    avatar = models.URLField(blank=True, default='')
-    banner = models.URLField(blank=True, default='')
-    team = models.ForeignKey('teams.Team', on_delete=models.CASCADE, related_name='projects')
+    avatar = models.URLField(blank=True, default="")
+    banner = models.URLField(blank=True, default="")
+    team = models.ForeignKey(
+        "teams.Team", on_delete=models.CASCADE, related_name="projects"
+    )
     created_by = models.UUIDField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table= 'projects'
-        ordering: ClassVar = ['name', 'id']
-        unique_together: ClassVar = [('team', 'key')]
+        db_table = "projects"
+        ordering: ClassVar = ["name", "id"]
+        unique_together: ClassVar = [("team", "key")]
 
     def __str__(self):
         return self.name
 
 
 class ProjectMembership(models.Model):
-
     class Role(models.TextChoices):
-        LEAD = 'lead', 'Lead'
-        CONTRIBUTOR = 'contributor', 'Contributor'
-        
+        LEAD = "lead", "Lead"
+        CONTRIBUTOR = "contributor", "Contributor"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='memberships')
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="memberships"
+    )
     user_id = models.UUIDField()
     role = models.CharField(max_length=11, choices=Role.choices)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        db_table = 'project_memberships'
-        ordering: ClassVar = ['joined_at', 'id']
-        unique_together: ClassVar = [('user_id', 'project')]
+        db_table = "project_memberships"
+        ordering: ClassVar = ["joined_at", "id"]
+        unique_together: ClassVar = [("user_id", "project")]
 
     def __str__(self):
-        return f'{self.user_id} - {self.project_id} ({self.role})' # type: ignore
+        return f"{self.user_id} - {self.project_id} ({self.role})"  # type: ignore

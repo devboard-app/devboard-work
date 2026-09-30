@@ -19,30 +19,29 @@ class TokenUser:
 
 class JWTAuthentication(BaseAuthentication):
     def authenticate(self, request):
-        auth_header = request.headers.get('Authorization')
-        if not auth_header or not auth_header.startswith('Bearer '):
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
             return None
 
-        token = auth_header.split(' ')[1]
+        token = auth_header.split(" ")[1]
 
         try:
-            payload = jwt.decode(token, settings.JWT_SECRET, algorithms=['HS256'])
+            payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
         except JWTError:
-            raise AuthenticationFailed('Invalid or expired token')
+            raise AuthenticationFailed("Invalid or expired token")
 
-        user_id = payload.get('sub')
-        email = payload.get('email')
-        role = payload.get('role')
+        user_id = payload.get("sub")
+        email = payload.get("email")
+        role = payload.get("role")
 
         if not user_id:
-            raise AuthenticationFailed('Invalid token payload')
+            raise AuthenticationFailed("Invalid token payload")
 
         status = async_to_sync(get_user_status)(user_id)
-        if status != 'active':
-            raise AuthenticationFailed('User is inactive')
+        if status != "active":
+            raise AuthenticationFailed("User is inactive")
 
         return (TokenUser(user_id=user_id, email=email, role=role), token)
 
     def authenticate_header(self, request):
-        return 'Bearer'
-        
+        return "Bearer"

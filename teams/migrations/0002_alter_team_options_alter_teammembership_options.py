@@ -4,18 +4,17 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('teams', '0001_initial'),
+        ("teams", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='team',
-            options={'ordering': ['name', 'id']},
+            name="team",
+            options={"ordering": ["name", "id"]},
         ),
         migrations.AlterModelOptions(
-            name='teammembership',
-            options={'ordering': ['joined_at', 'id']},
+            name="teammembership",
+            options={"ordering": ["joined_at", "id"]},
         ),
     ]

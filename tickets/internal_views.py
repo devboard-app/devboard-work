@@ -8,7 +8,6 @@ from .repository import get_ticket_by_key
 
 
 class InternalTicketByKeyView(AsyncAPIView):
-
     authentication_classes = []  # noqa: RUF012 internal service call, not a user request
     permission_classes = [IsInternalService]  # noqa: RUF012
 
@@ -16,4 +15,6 @@ class InternalTicketByKeyView(AsyncAPIView):
         ticket = await get_ticket_by_key(project_id, key)
         if ticket is None:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        return Response({"id": str(ticket.id), "project_id": project_id}, status=status.HTTP_200_OK)
+        return Response(
+            {"id": str(ticket.id), "project_id": project_id}, status=status.HTTP_200_OK
+        )

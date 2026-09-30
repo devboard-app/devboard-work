@@ -26,94 +26,184 @@ from .repository import update_sprint as update_sprint_repository
 async def get_sprint_or_404(sprint_id: str, project_id: str) -> Sprint:
     sprint = await get_sprint_by_id(sprint_id, project_id)
     if sprint is None:
-        raise NotFound('Sprint not found.')
+        raise NotFound("Sprint not found.")
     return sprint
 
-async def list_project_sprints(project_id: str, limit: int, offset: int) -> tuple[list[Sprint], int]:
+
+async def list_project_sprints(
+    project_id: str, limit: int, offset: int
+) -> tuple[list[Sprint], int]:
     return await get_sprints_by_project(project_id, limit, offset)
 
 
 async def create_sprint(project: Project, created_by: str, data: dict) -> Sprint:
-    return await create_sprint_repository(data['name'], data['goal'], data.get('start_date'), data.get('end_date'), project, created_by)
+    return await create_sprint_repository(
+        data["name"],
+        data["goal"],
+        data.get("start_date"),
+        data.get("end_date"),
+        project,
+        created_by,
+    )
+
 
 async def update_sprint(sprint: Sprint, data: dict) -> Sprint:
     if sprint.status != Sprint.Status.CREATED:
-        raise Conflict('You cannot edit Active or Completed sprints.')
+        raise Conflict("You cannot edit Active or Completed sprints.")
     for key, value in data.items():
         setattr(sprint, key, value)
     return await update_sprint_repository(sprint)
 
+
 async def delete_sprint(sprint: Sprint) -> None:
     if sprint.status != Sprint.Status.CREATED:
-        raise Conflict('You cannot delete Active or Completed sprints.')
+        raise Conflict("You cannot delete Active or Completed sprints.")
     await delete_sprint_repository(sprint)
 
-async def start_sprint(sprint: Sprint, project_id: str, team_id: str, actor_id: str, project_name: str) -> Sprint:
+
+async def start_sprint(
+    sprint: Sprint, project_id: str, team_id: str, actor_id: str, project_name: str
+) -> Sprint:
     if sprint.status != Sprint.Status.CREATED:
-        raise Conflict('You cannot start Active or Completed sprints.')
+        raise Conflict("You cannot start Active or Completed sprints.")
     if await get_active_sprint_by_project(project_id):
-        raise Conflict('There\'s already an active Sprint.')
+        raise Conflict("There's already an active Sprint.")
     if not await sprint_has_tickets(sprint):
-        raise Conflict('Sprint must have at least one ticket.')
+        raise Conflict("Sprint must have at least one ticket.")
     sprint.status = Sprint.Status.ACTIVE
-    payload = build_payload('sprint.started', team_id=team_id, actor_id=actor_id, sprint_id=sprint.id, sprint_name=sprint.name, project_id=sprint.project_id, project_name=project_name, # type: ignore
-                            start_date=sprint.start_date.isoformat() if sprint.start_date else None, end_date=sprint.end_date.isoformat() if sprint.end_date else None)
+    payload = build_payload(
+        "sprint.started",
+        team_id=team_id,
+        actor_id=actor_id,
+        sprint_id=sprint.id,
+        sprint_name=sprint.name,
+        project_id=sprint.project_id,
+        project_name=project_name,  # type: ignore
+        start_date=sprint.start_date.isoformat() if sprint.start_date else None,
+        end_date=sprint.end_date.isoformat() if sprint.end_date else None,
+    )
+
     def _save():
         return update_sprint_sync(sprint)
+
     try:
-        sprint = await awrite_with_outbox(_save, [('redis_stream', payload)])
+        sprint = await awrite_with_outbox(_save, [("redis_stream", payload)])
     except IntegrityError:
-        raise Conflict("There\'s already an active Sprint.")
+        raise Conflict("There's already an active Sprint.")
 
     return sprint
 
-async def complete_sprint(sprint: Sprint, team_id: str, actor_id: str, project_name: str) -> Sprint:
+
+async def complete_sprint(
+    sprint: Sprint, team_id: str, actor_id: str, project_name: str
+) -> Sprint:
     if sprint.status != Sprint.Status.ACTIVE:
-        raise Conflict('You can only complete Active sprints.')
+        raise Conflict("You can only complete Active sprints.")
     sprint.status = Sprint.Status.COMPLETED
-    payload = build_payload('sprint.completed', team_id=team_id, actor_id=actor_id, sprint_id=sprint.id, sprint_name=sprint.name, project_id=sprint.project_id, project_name=project_name,  # type: ignore
-                            start_date=sprint.start_date.isoformat() if sprint.start_date else None, end_date=sprint.end_date.isoformat() if sprint.end_date else None)
+    payload = build_payload(
+        "sprint.completed",
+        team_id=team_id,
+        actor_id=actor_id,
+        sprint_id=sprint.id,
+        sprint_name=sprint.name,
+        project_id=sprint.project_id,
+        project_name=project_name,  # type: ignore
+        start_date=sprint.start_date.isoformat() if sprint.start_date else None,
+        end_date=sprint.end_date.isoformat() if sprint.end_date else None,
+    )
+
     def _complete():
         move_unfinished_tickets_to_backlog_sync(sprint)
         return update_sprint_sync(sprint)
-    
-    sprint = await awrite_with_outbox(_complete, [('redis_stream', payload)])
+
+    sprint = await awrite_with_outbox(_complete, [("redis_stream", payload)])
     return sprint
+
 
 async def add_ticket_to_sprint(sprint: Sprint, ticket: Ticket, actor_id: str) -> None:
     if sprint.status == Sprint.Status.COMPLETED:
-        raise Conflict('You cannot add tickets to a completed sprint.')
-    if sprint.project_id != ticket.project_id: #type: ignore
-        raise ValidationError({'ticket_id':'Ticket does not belong to this project.'})
-    if ticket.sprint_id is not None: #type: ignore
-        raise Conflict('Ticket is already on another sprint.')
+        raise Conflict("You cannot add tickets to a completed sprint.")
+    if sprint.project_id != ticket.project_id:  # type: ignore
+        raise ValidationError({"ticket_id": "Ticket does not belong to this project."})
+    if ticket.sprint_id is not None:  # type: ignore
+        raise Conflict("Ticket is already on another sprint.")
     moved = ticket.status == Ticket.Status.BACKLOG
     if moved:
-        ticket.status = Ticket.Status.TODO # joining a sprint = planned work
-    ticket.sprint = sprint #type: ignore
-    payload = build_payload('ticket.sprint_added', project_id=ticket.project_id, actor_id=actor_id, ticket_id=ticket.id, ticket_key=ticket.key, sprint_id=sprint.id, sprint_name=sprint.name) # type: ignore
-    events =[('redis_stream', payload)]
+        ticket.status = Ticket.Status.TODO  # joining a sprint = planned work
+    ticket.sprint = sprint  # type: ignore
+    payload = build_payload(
+        "ticket.sprint_added",
+        project_id=ticket.project_id,
+        actor_id=actor_id,
+        ticket_id=ticket.id,
+        ticket_key=ticket.key,
+        sprint_id=sprint.id,
+        sprint_name=sprint.name,
+    )  # type: ignore
+    events = [("redis_stream", payload)]
     if moved:
         # no recipient_id, so the assignee isn't notified about an automatic move
-        events.append(('redis_stream', build_payload('ticket.status_changed', project_id=ticket.project_id, actor_id=actor_id, ticket_id=ticket.id, ticket_key=ticket.key, from_status='backlog', to_status='todo'))) # type: ignore
+        events.append(
+            (
+                "redis_stream",
+                build_payload(
+                    "ticket.status_changed",
+                    project_id=ticket.project_id,
+                    actor_id=actor_id,
+                    ticket_id=ticket.id,
+                    ticket_key=ticket.key,
+                    from_status="backlog",
+                    to_status="todo",
+                ),
+            )
+        )  # type: ignore
 
     def _save():
         return update_ticket_sync(ticket)
+
     await awrite_with_outbox(_save, events)
 
-async def remove_ticket_from_sprint(ticket: Ticket, sprint: Sprint, actor_id: str) -> None:
+
+async def remove_ticket_from_sprint(
+    ticket: Ticket, sprint: Sprint, actor_id: str
+) -> None:
     old_status = ticket.status
     ticket.sprint = None
     if ticket.status != Ticket.Status.DONE:
         ticket.status = Ticket.Status.BACKLOG
-    payload = build_payload('ticket.sprint_removed', project_id=ticket.project_id, actor_id=actor_id, ticket_id=ticket.id, ticket_key=ticket.key, sprint_id=sprint.id, sprint_name=sprint.name) # type: ignore
-    events = [('redis_stream', payload)]
+    payload = build_payload(
+        "ticket.sprint_removed",
+        project_id=ticket.project_id,
+        actor_id=actor_id,
+        ticket_id=ticket.id,
+        ticket_key=ticket.key,
+        sprint_id=sprint.id,
+        sprint_name=sprint.name,
+    )  # type: ignore
+    events = [("redis_stream", payload)]
     if ticket.status != old_status:
-        events.append(('redis_stream', build_payload('ticket.status_changed', project_id=ticket.project_id, actor_id=actor_id, ticket_id=ticket.id, ticket_key=ticket.key, from_status=old_status, to_status=ticket.status))) # type: ignore
-    
+        events.append(
+            (
+                "redis_stream",
+                build_payload(
+                    "ticket.status_changed",
+                    project_id=ticket.project_id,
+                    actor_id=actor_id,
+                    ticket_id=ticket.id,
+                    ticket_key=ticket.key,
+                    from_status=old_status,
+                    to_status=ticket.status,
+                ),
+            )
+        )  # type: ignore
+
     def _save():
         return update_ticket_sync(ticket)
+
     await awrite_with_outbox(_save, events)
 
-async def list_sprint_tickets(sprint: Sprint, limit: int, offset: int) -> tuple[list[Ticket], int]:
+
+async def list_sprint_tickets(
+    sprint: Sprint, limit: int, offset: int
+) -> tuple[list[Ticket], int]:
     return await get_sprint_tickets_page(sprint, limit, offset)

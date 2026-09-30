@@ -7,32 +7,46 @@ from .models import Ticket
 
 
 async def get_ticket_by_id(ticket_id: str, project_id: str) -> Ticket | None:
-    return await Ticket.objects.filter(id=ticket_id, project_id=project_id).prefetch_related('labels').afirst()
+    return (
+        await Ticket.objects.filter(id=ticket_id, project_id=project_id)
+        .prefetch_related("labels")
+        .afirst()
+    )
 
-async def get_tickets_by_project(project_id: str, limit: int, offset: int, filters: dict | None = None) -> tuple[list[Ticket], int]:
-    qs = apply_ticket_filters(Ticket.objects.filter(project=project_id), filters or {}).prefetch_related('labels')
+
+async def get_tickets_by_project(
+    project_id: str, limit: int, offset: int, filters: dict | None = None
+) -> tuple[list[Ticket], int]:
+    qs = apply_ticket_filters(
+        Ticket.objects.filter(project=project_id), filters or {}
+    ).prefetch_related("labels")
     return await page(qs, limit, offset)
 
+
 async def get_next_ticket_number(project_id: str) -> int:
-    result = await Ticket.objects.filter(project=project_id).aaggregate(max_number=Max('ticket_number'))
-    return (result['max_number'] or 0) +1
+    result = await Ticket.objects.filter(project=project_id).aaggregate(
+        max_number=Max("ticket_number")
+    )
+    return (result["max_number"] or 0) + 1
+
 
 async def create_ticket(
-        title: str,
-        description: str,
-        type: Ticket.Type,
-        priority: Ticket.Priority,
-        status: Ticket.Status,
-        project: Project,
-        created_by: str,
-        ticket_number: int,
-        key: str,
-        assignee_id: str | None = None,
-        parent_epic: Ticket | None = None,
-        due_date = None,
-        story_points: int | None = None) -> Ticket:
+    title: str,
+    description: str,
+    type: Ticket.Type,
+    priority: Ticket.Priority,
+    status: Ticket.Status,
+    project: Project,
+    created_by: str,
+    ticket_number: int,
+    key: str,
+    assignee_id: str | None = None,
+    parent_epic: Ticket | None = None,
+    due_date=None,
+    story_points: int | None = None,
+) -> Ticket:
     return await Ticket.objects.acreate(
-        title=title, 
+        title=title,
         description=description,
         type=type,
         priority=priority,
@@ -47,21 +61,23 @@ async def create_ticket(
         story_points=story_points,
     )
 
+
 def create_ticket_sync(
-        id,
-        title: str,
-        description: str,
-        type: Ticket.Type,
-        priority: Ticket.Priority,
-        status: Ticket.Status,
-        project: Project,
-        created_by: str,
-        ticket_number: int,
-        key: str,
-        assignee_id: str | None = None,
-        parent_epic: Ticket | None = None,
-        due_date = None,
-        story_points: int | None = None) -> Ticket:
+    id,
+    title: str,
+    description: str,
+    type: Ticket.Type,
+    priority: Ticket.Priority,
+    status: Ticket.Status,
+    project: Project,
+    created_by: str,
+    ticket_number: int,
+    key: str,
+    assignee_id: str | None = None,
+    parent_epic: Ticket | None = None,
+    due_date=None,
+    story_points: int | None = None,
+) -> Ticket:
     return Ticket.objects.create(
         id=id,
         title=title,
@@ -79,36 +95,50 @@ def create_ticket_sync(
         story_points=story_points,
     )
 
+
 async def update_ticket(ticket: Ticket) -> Ticket:
     await ticket.asave()
     return ticket
+
 
 def update_ticket_sync(ticket: Ticket) -> Ticket:
     ticket.save()
     return ticket
 
+
 async def delete_ticket(ticket: Ticket) -> None:
     await ticket.adelete()
+
 
 def delete_ticket_sync(ticket: Ticket) -> None:
     ticket.delete()
 
-async def get_tickets_by_project_and_no_sprint(project_id: str, limit: int, offset: int, filters: dict | None = None) -> tuple[list[Ticket], int]:
-    qs = apply_ticket_filters(Ticket.objects.filter(project=project_id, sprint__isnull=True).prefetch_related('labels'), filters or {})
+
+async def get_tickets_by_project_and_no_sprint(
+    project_id: str, limit: int, offset: int, filters: dict | None = None
+) -> tuple[list[Ticket], int]:
+    qs = apply_ticket_filters(
+        Ticket.objects.filter(project=project_id, sprint__isnull=True).prefetch_related(
+            "labels"
+        ),
+        filters or {},
+    )
     return await page(qs, limit, offset)
+
 
 async def get_ticket_by_key(project_id: str, key: str) -> Ticket | None:
     return await Ticket.objects.filter(project_id=project_id, key=key).afirst()
 
+
 def apply_ticket_filters(qs, filters: dict):
-    if 'assignee' in filters:
-        qs = qs.filter(assignee_id=filters['assignee'])
-    if 'priority' in filters:
-        qs = qs.filter(priority=filters['priority'])
-    if 'type' in filters:
-        qs = qs.filter(type=filters['type'])
-    if 'label' in filters:
-        qs = qs.filter(labels__id=filters['label'])
-    if 'parent_epic' in filters:
-        qs = qs.filter(parent_epic_id=filters['parent_epic'])
+    if "assignee" in filters:
+        qs = qs.filter(assignee_id=filters["assignee"])
+    if "priority" in filters:
+        qs = qs.filter(priority=filters["priority"])
+    if "type" in filters:
+        qs = qs.filter(type=filters["type"])
+    if "label" in filters:
+        qs = qs.filter(labels__id=filters["label"])
+    if "parent_epic" in filters:
+        qs = qs.filter(parent_epic_id=filters["parent_epic"])
     return qs

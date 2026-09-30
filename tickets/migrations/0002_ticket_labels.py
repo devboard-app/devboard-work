@@ -4,16 +4,17 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('labels', '0001_initial'),
-        ('tickets', '0001_initial'),
+        ("labels", "0001_initial"),
+        ("tickets", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='ticket',
-            name='labels',
-            field=models.ManyToManyField(blank=True, related_name='tickets', to='labels.label'),
+            model_name="ticket",
+            name="labels",
+            field=models.ManyToManyField(
+                blank=True, related_name="tickets", to="labels.label"
+            ),
         ),
     ]

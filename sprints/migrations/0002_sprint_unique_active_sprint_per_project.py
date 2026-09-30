@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('projects', '0002_alter_project_key_alter_project_unique_together'),
-        ('sprints', '0001_initial'),
+        ("projects", "0002_alter_project_key_alter_project_unique_together"),
+        ("sprints", "0001_initial"),
     ]
 
     operations = [
         migrations.AddConstraint(
-            model_name='sprint',
-            constraint=models.UniqueConstraint(condition=models.Q(('status', 'active')), fields=('project',), name='unique_active_sprint_per_project'),
+            model_name="sprint",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("status", "active")),
+                fields=("project",),
+                name="unique_active_sprint_per_project",
+            ),
         ),
     ]

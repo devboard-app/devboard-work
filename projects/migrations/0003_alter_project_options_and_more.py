@@ -4,18 +4,17 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('projects', '0002_alter_project_key_alter_project_unique_together'),
+        ("projects", "0002_alter_project_key_alter_project_unique_together"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='project',
-            options={'ordering': ['name', 'id']},
+            name="project",
+            options={"ordering": ["name", "id"]},
         ),
         migrations.AlterModelOptions(
-            name='projectmembership',
-            options={'ordering': ['joined_at', 'id']},
+            name="projectmembership",
+            options={"ordering": ["joined_at", "id"]},
         ),
     ]

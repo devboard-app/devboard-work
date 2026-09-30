@@ -4,20 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('teams', '0002_alter_team_options_alter_teammembership_options'),
+        ("teams", "0002_alter_team_options_alter_teammembership_options"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='team',
-            name='avatar',
-            field=models.URLField(blank=True, default=''),
+            model_name="team",
+            name="avatar",
+            field=models.URLField(blank=True, default=""),
         ),
         migrations.AddField(
-            model_name='team',
-            name='banner',
-            field=models.URLField(blank=True, default=''),
+            model_name="team",
+            name="banner",
+            field=models.URLField(blank=True, default=""),
         ),
     ]
