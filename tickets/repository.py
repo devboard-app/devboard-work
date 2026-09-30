@@ -141,4 +141,6 @@ def apply_ticket_filters(qs, filters: dict):
         qs = qs.filter(labels__id=filters["label"])
     if "parent_epic" in filters:
         qs = qs.filter(parent_epic_id=filters["parent_epic"])
+    if "key" in filters:
+        qs = qs.filter(key__iexact=filters["key"])
     return qs

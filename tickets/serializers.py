@@ -95,3 +95,4 @@ class TicketFilterSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=Ticket.Type.choices, required=False)
     label = serializers.UUIDField(required=False)
     parent_epic = serializers.UUIDField(required=False)
+    key = serializers.CharField(max_length=20, required=False)
